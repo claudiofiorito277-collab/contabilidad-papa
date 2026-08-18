@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Único documento donde vive toda la contabilidad. Cualquier usuario
+    // logueado (Claudio, Marcelo o Andrés) puede LEER. Solo Claudio y
+    // Marcelo pueden ESCRIBIR — esto es lo que bloquea de verdad a Andrés,
+    // no la interfaz (que además ya le oculta los botones de edición).
+    match /contabilidad/papa {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+        request.auth.token.email in [
+          'claudio@contabilidadpapa.local',
+          'marcelo@contabilidadpapa.local'
+        ];
+    }
+
+    // Todo lo demás, bloqueado por las dudas.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

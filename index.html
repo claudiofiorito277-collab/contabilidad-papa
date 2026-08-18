@@ -1,0 +1,2160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Contabilidad Papa</title>
+<style>
+  :root{
+    --bg:#1a1a2e;
+    --bg2:#16213e;
+    --card:rgba(255,255,255,.06);
+    --card-strong:rgba(255,255,255,.1);
+    --border:rgba(255,255,255,.1);
+    --accent:#4fc3f7;
+    --accent2:#29b6f6;
+    --green:#4caf50;
+    --red:#ef5350;
+    --orange:#ffa726;
+    --text:#eaeaf2;
+    --text-dim:#9a9ab0;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    background:linear-gradient(180deg,var(--bg) 0%, var(--bg2) 100%);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:16px;
+    min-height:100vh;
+    padding-bottom:24px;
+  }
+  button{font-family:inherit;}
+  input,select,textarea{font-family:inherit; font-size:16px;}
+  ::-webkit-scrollbar{width:0;height:0;}
+
+  /* HEADER */
+  header{
+    position:sticky; top:0; z-index:50;
+    background:rgba(22,33,62,.96);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--border);
+    padding:10px 12px 8px;
+  }
+  .header-top{display:flex; align-items:center; justify-content:space-between;}
+  .app-title{font-size:15px; font-weight:700; letter-spacing:.5px; color:var(--accent); display:flex; align-items:center; gap:6px;}
+  .menu-btn{background:none;border:none;color:var(--text); font-size:22px; padding:6px 10px; border-radius:10px;}
+  .menu-btn:active{background:var(--card);}
+  .month-nav{display:flex; align-items:center; justify-content:center; gap:10px; margin-top:6px;}
+  .month-nav button{
+    background:var(--card); border:1px solid var(--border); color:var(--accent);
+    width:42px; height:42px; border-radius:12px; font-size:20px; font-weight:700;
+  }
+  .month-nav button:active{background:var(--card-strong);}
+  .month-label{
+    font-size:19px; font-weight:700; min-width:170px; text-align:center;
+    padding:8px 10px; border-radius:12px;
+  }
+  .month-label:active{background:var(--card);}
+  .month-status{
+    text-align:center; font-size:11px; color:var(--orange); margin-top:2px;
+    font-weight:600; display:none;
+  }
+  .month-status.show{display:block;}
+
+  /* TABS CONTENT */
+  main{padding:12px; max-width:640px; margin:0 auto;}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block; animation:fadein .15s ease;}
+  @keyframes fadein{from{opacity:0} to{opacity:1}}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:14px;
+    margin-bottom:12px;
+  }
+  .card h3{margin:0 0 10px; font-size:14px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px;}
+
+  /* GASTOS LIST */
+  .gasto-row{
+    display:flex; align-items:center; gap:10px;
+    padding:12px 4px; border-bottom:1px solid var(--border);
+  }
+  .gasto-row:last-child{border-bottom:none;}
+  .gasto-cat-icon{
+    width:40px; height:40px; border-radius:10px; background:var(--card-strong);
+    display:flex; align-items:center; justify-content:center; font-size:19px; flex-shrink:0;
+  }
+  .gasto-info{flex:1; min-width:0;}
+  .gasto-prov{font-weight:600; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .gasto-detalle{font-size:13px; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .gasto-meta{font-size:12px; color:var(--text-dim); margin-top:2px;}
+  .badge{
+    display:inline-block; padding:1px 7px; border-radius:20px; font-size:11px; font-weight:700; margin-right:6px;
+  }
+  .badge-claudio{background:rgba(79,195,247,.18); color:var(--accent);}
+  .badge-marcelo{background:rgba(255,167,38,.18); color:var(--orange);}
+  .gasto-right{text-align:right; flex-shrink:0;}
+  .gasto-monto{font-weight:700; color:var(--red); font-size:16px;}
+  .del-btn{
+    background:none; border:none; color:var(--text-dim); font-size:20px; padding:6px 4px; margin-left:4px;
+  }
+  .del-btn:active{color:var(--red);}
+  .empty-state{text-align:center; padding:40px 20px; color:var(--text-dim);}
+  .empty-state .big{font-size:40px; margin-bottom:8px;}
+
+  .totales-row{display:flex; gap:10px; margin-top:6px;}
+  .total-chip{
+    flex:1; background:var(--card-strong); border-radius:12px; padding:10px; text-align:center;
+  }
+  .total-chip .lbl{font-size:12px; color:var(--text-dim);}
+  .total-chip .val{font-size:17px; font-weight:700; margin-top:2px;}
+
+  /* FAB */
+  .fab{
+    position:fixed; right:18px; bottom:20px; z-index:40;
+    width:58px; height:58px; border-radius:50%;
+    background:linear-gradient(135deg, var(--accent), var(--accent2));
+    color:#0a1730; font-size:30px; font-weight:800; border:none;
+    box-shadow:0 6px 18px rgba(79,195,247,.4);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .fab:active{transform:scale(.94);}
+
+  /* Botón de guardar fijo abajo (para que nunca haga falta scrollear
+     para encontrarlo, como pasaba con "Guardar ingresos") */
+  .sticky-save{
+    display:none;
+    position:fixed; left:0; right:0; bottom:14px; z-index:45;
+    padding:0 12px;
+  }
+  .sticky-save .btn{
+    max-width:616px; margin:0 auto;
+    box-shadow:0 6px 18px rgba(79,195,247,.35);
+  }
+
+  /* SIDE NAV (antes era una barra fija abajo que tapaba el final del
+     Resumen; ahora es una manija en el borde derecho que abre/cierra un
+     panel flotante con las 4 pestañas, sin ocupar espacio permanente). */
+  .side-nav-handle{
+    position:fixed; right:0; top:50%; transform:translateY(-50%); z-index:55;
+    width:26px; height:74px; border-radius:14px 0 0 14px;
+    background:rgba(22,33,62,.96); border:1px solid var(--border); border-right:none;
+    backdrop-filter:blur(8px);
+    color:var(--accent); font-size:16px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:-4px 0 14px rgba(0,0,0,.3);
+  }
+  .side-nav-handle:active{background:var(--card-strong);}
+
+  .side-nav-backdrop{
+    position:fixed; inset:0; z-index:53; background:transparent;
+    display:none;
+  }
+  .side-nav-backdrop.show{display:block;}
+
+  .side-nav-panel{
+    position:fixed; right:0; top:50%; z-index:54;
+    transform:translateY(-50%) translateX(100%);
+    display:flex; flex-direction:column; gap:4px;
+    background:rgba(22,33,62,.98); backdrop-filter:blur(8px);
+    border:1px solid var(--border); border-right:none;
+    border-radius:16px 0 0 16px;
+    padding:10px 10px; padding-right:34px;
+    transition:transform .2s ease;
+    box-shadow:-6px 0 18px rgba(0,0,0,.35);
+  }
+  .side-nav-panel.open{transform:translateY(-50%) translateX(0);}
+  .side-nav-panel button{
+    background:none; border:none; color:var(--text-dim);
+    display:flex; flex-direction:row; align-items:center; gap:8px;
+    padding:10px 12px; border-radius:12px; font-size:13px; font-weight:700;
+    white-space:nowrap;
+  }
+  .side-nav-panel button .ic{font-size:19px;}
+  .side-nav-panel button.active{color:var(--accent); background:var(--card-strong);}
+
+  /* FORM ELEMENTS */
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:13px; color:var(--text-dim); margin-bottom:6px; font-weight:600;}
+  .field input[type=text], .field input[type=number], .field input[type=date], .field input[type=password], .field select, .field textarea{
+    width:100%; background:var(--card-strong); border:1px solid var(--border); color:var(--text);
+    padding:13px 12px; border-radius:12px; height:48px;
+  }
+  .field select{-webkit-appearance:none; appearance:none;}
+  .radio-group{display:flex; gap:10px;}
+  .radio-opt{
+    flex:1; text-align:center; padding:13px 8px; border-radius:12px; border:2px solid var(--border);
+    background:var(--card-strong); font-weight:700; height:48px; display:flex; align-items:center; justify-content:center;
+  }
+  .radio-opt.sel-claudio{border-color:var(--accent); color:var(--accent); background:rgba(79,195,247,.12);}
+  .radio-opt.sel-marcelo{border-color:var(--orange); color:var(--orange); background:rgba(255,167,38,.12);}
+
+  .btn{
+    display:block; width:100%; text-align:center; padding:14px; border-radius:14px;
+    border:none; font-weight:700; font-size:16px; min-height:48px;
+  }
+  .btn-primary{background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#0a1730;}
+  .btn-secondary{background:var(--card-strong); color:var(--text); border:1px solid var(--border);}
+  .btn-danger{background:rgba(239,83,80,.15); color:var(--red); border:1px solid rgba(239,83,80,.4);}
+  .btn:active{opacity:.85;}
+  .btn-row{display:flex; gap:10px; margin-top:16px;}
+  .btn-row .btn{flex:1;}
+
+  /* INGRESOS */
+  .ingreso-row{display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--border);}
+  .ingreso-row:last-child{border-bottom:none;}
+  .ingreso-lbl{flex:1;}
+  .ingreso-lbl .l1{font-weight:600; font-size:15px;}
+  .ingreso-lbl .l2{font-size:12px; color:var(--text-dim);}
+  .ingreso-row input{width:130px; text-align:right; background:var(--card-strong); border:1px solid var(--border); color:var(--green); font-weight:700; padding:10px 8px; border-radius:10px; height:44px;}
+
+  /* RESUMEN */
+  .saldo-grande{
+    text-align:center; padding:22px 10px; border-radius:18px; margin-bottom:14px;
+    background:var(--card);
+    border:1px solid var(--border);
+  }
+  .saldo-grande .lbl{font-size:13px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; font-weight:700;}
+  .saldo-grande .val{font-size:36px; font-weight:800; margin-top:6px;}
+  .val.pos{color:var(--green);}
+  .val.neg{color:var(--red);}
+  .val.warn{color:var(--orange);}
+
+  .resumen-line{display:flex; justify-content:space-between; padding:7px 0; font-size:15px;}
+  .resumen-line .lk{color:var(--text-dim);}
+  .resumen-line.total{border-top:1px solid var(--border); margin-top:6px; padding-top:10px; font-weight:800; font-size:17px;}
+  .resumen-line.total .lk{color:var(--text);}
+  .admin-tag{font-size:12px; font-weight:700; padding:2px 8px; border-radius:20px;}
+
+  .usd-box{display:flex; gap:10px;}
+  .usd-card{flex:1; background:var(--card-strong); border-radius:14px; padding:12px; text-align:center;}
+  .usd-card .lbl{font-size:12px; color:var(--text-dim);}
+  .usd-card .val{font-size:20px; font-weight:800; color:var(--accent); margin-top:4px;}
+
+  .small-add{background:var(--card-strong); border:1px dashed var(--border); color:var(--accent); border-radius:12px; padding:10px; text-align:center; font-weight:700; margin-top:10px;}
+
+  /* HISTORIAL / PRINT */
+  .print-area{background:#0f1626; border-radius:16px; padding:16px; border:1px solid var(--border);}
+  .print-title{text-align:center; font-size:20px; font-weight:800; color:var(--accent); margin-bottom:4px;}
+  .print-sub{text-align:center; font-size:13px; color:var(--text-dim); margin-bottom:16px;}
+  .print-section-title{font-size:13px; font-weight:800; color:var(--accent); text-transform:uppercase; letter-spacing:.5px; margin:16px 0 8px;}
+  table.hist-table{width:100%; border-collapse:collapse; font-size:13px;}
+  table.hist-table th, table.hist-table td{padding:6px 4px; border-bottom:1px solid var(--border); text-align:left;}
+  table.hist-table th{color:var(--text-dim); font-weight:600; font-size:11px; text-transform:uppercase;}
+  table.hist-table td.num{text-align:right; white-space:nowrap;}
+
+  /* MODAL */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:100;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal-sheet{
+    background:var(--bg2); width:100%; max-width:640px; border-radius:22px 22px 0 0;
+    padding:18px 18px calc(18px + env(safe-area-inset-bottom)); max-height:88vh; overflow-y:auto;
+    border-top:1px solid var(--border);
+  }
+  .modal-handle{width:40px; height:4px; background:var(--border); border-radius:4px; margin:0 auto 14px;}
+  .modal-title{font-size:18px; font-weight:800; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;}
+  .modal-title .close-x{font-size:22px; color:var(--text-dim); background:none; border:none;}
+
+  .month-picker-list{max-height:50vh; overflow-y:auto;}
+  .month-picker-item{padding:14px 10px; border-bottom:1px solid var(--border); font-weight:600; display:flex; justify-content:space-between;}
+  .month-picker-item .chev{color:var(--text-dim);}
+
+  .toast{
+    position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
+    background:var(--card-strong); border:1px solid var(--border); color:var(--text);
+    padding:10px 18px; border-radius:30px; font-size:14px; font-weight:600; z-index:200;
+    opacity:0; pointer-events:none; transition:opacity .25s;
+  }
+  .toast.show{opacity:1;}
+
+  /* LOGIN */
+  .login-screen{
+    position:fixed; inset:0; z-index:300;
+    background:linear-gradient(180deg,var(--bg) 0%, var(--bg2) 100%);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .login-screen.hide{display:none;}
+  .login-card{width:100%; max-width:360px;}
+
+  /* Modo solo lectura: se ocultan todos los controles de edición/guardado.
+     El bloqueo real está en las reglas de Firestore; esto es solo para que
+     la interfaz no muestre botones que de todos modos van a ser rechazados. */
+  body.readonly .fab,
+  body.readonly .sticky-save,
+  body.readonly .small-add,
+  body.readonly .del-btn,
+  body.readonly #btnImportBackup,
+  body.readonly #btnResetAll,
+  body.readonly #btnResyncAll,
+  body.readonly #btnResyncMonth,
+  body.readonly #btnGuardarIngresos,
+  body.readonly #btnLinkGastoUsd,
+  body.readonly #btnLinkGastoFondo,
+  body.readonly .btn-row .btn-primary,
+  body.readonly .btn-row .btn-danger{
+    display:none !important;
+  }
+
+  @media print{
+    body{background:#fff !important; color:#000 !important; padding:0;}
+    header, .fab, .no-print{display:none !important;}
+    main{max-width:100%; padding:0;}
+    .tab-panel{display:none !important;}
+    #panel-historial{display:block !important;}
+    #panel-historial > *:not(.print-area){display:none !important;}
+    .print-area{background:#fff !important; border:none; color:#000 !important;}
+    .print-title, .print-sub, .print-section-title{color:#000 !important;}
+    table.hist-table th, table.hist-table td{border-color:#ccc !important; color:#000 !important;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="app-title">💰 CONTABILIDAD PAPA</div>
+    <button class="menu-btn" id="btnMenu">⋮</button>
+  </div>
+  <div class="month-nav">
+    <button id="btnPrevMonth">‹</button>
+    <div class="month-label" id="lblMonth">Agosto 2026</div>
+    <button id="btnNextMonth">›</button>
+  </div>
+  <div class="month-status" id="monthStatus">Mes sin guardar · se crea al cargar algo</div>
+</header>
+
+<main>
+
+  <!-- TAB 1: GASTOS -->
+  <section class="tab-panel active" id="panel-gastos">
+    <div class="card" id="gastosListCard">
+      <h3>Gastos del mes</h3>
+      <div id="gastosList"></div>
+    </div>
+    <div class="totales-row">
+      <div class="total-chip"><div class="lbl">Claudio</div><div class="val" id="totGastosClaudio" style="color:var(--accent)">$0,00</div></div>
+      <div class="total-chip"><div class="lbl">Marcelo</div><div class="val" id="totGastosMarcelo" style="color:var(--orange)">$0,00</div></div>
+      <div class="total-chip"><div class="lbl">Total</div><div class="val" id="totGastosTotal" style="color:var(--red)">$0,00</div></div>
+    </div>
+  </section>
+
+  <!-- TAB 2: INGRESOS -->
+  <section class="tab-panel" id="panel-ingresos" style="padding-bottom:76px;">
+    <div class="card">
+      <h3>Ingresos · Claudio</h3>
+      <div id="ingresosClaudioList"></div>
+    </div>
+    <div class="card">
+      <h3>Ingresos · Marcelo</h3>
+      <div id="ingresosMarceloList"></div>
+    </div>
+  </section>
+  <div class="sticky-save no-print" id="ingresosSaveBar">
+    <button class="btn btn-primary" id="btnGuardarIngresos">Guardar ingresos</button>
+  </div>
+
+  <!-- TAB 3: RESUMEN -->
+  <section class="tab-panel" id="panel-resumen">
+    <div class="card" id="cardDesync" style="display:none; border-color:var(--orange); background:rgba(255,167,38,.08);">
+      <h3 style="color:var(--orange);">⚠️ Saldo anterior desactualizado</h3>
+      <div id="desyncMsg" style="font-size:14px; margin-bottom:12px; color:var(--text);"></div>
+      <button class="btn btn-secondary" id="btnResyncMonth">Actualizar con el cierre real</button>
+    </div>
+    <div class="card">
+      <h3>Saldos anteriores</h3>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Saldo anterior Claudio</label>
+        <input type="text" inputmode="decimal" id="inpSaldoAntClaudio" placeholder="0">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Saldo anterior Marcelo</label>
+        <input type="text" inputmode="decimal" id="inpSaldoAntMarcelo" placeholder="0">
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Claudio</h3>
+      <div class="resumen-line"><span class="lk">Ingresos (+ saldo ant.)</span><span id="rClaudioIngresos" style="color:var(--green)"></span></div>
+      <div class="resumen-line"><span class="lk">Gastos</span><span id="rClaudioGastos" style="color:var(--red)"></span></div>
+      <div class="resumen-line total"><span class="lk">Saldo Claudio</span><span id="rClaudioSaldo"></span></div>
+    </div>
+
+    <div class="card">
+      <h3>Marcelo</h3>
+      <div class="resumen-line"><span class="lk">Ingresos (+ saldo ant.)</span><span id="rMarceloIngresos" style="color:var(--green)"></span></div>
+      <div class="resumen-line"><span class="lk">Gastos</span><span id="rMarceloGastos" style="color:var(--red)"></span></div>
+      <div class="resumen-line total"><span class="lk">Saldo Marcelo</span><span id="rMarceloSaldo"></span></div>
+    </div>
+
+    <div class="saldo-grande">
+      <div class="lbl">Saldo al día</div>
+      <div class="val" id="saldoAlDia">$0,00</div>
+    </div>
+
+    <div class="card">
+      <h3>USD disponibles</h3>
+      <div class="usd-box">
+        <div class="usd-card"><div class="lbl">Claudio</div><div class="val" id="usdClaudioVal">u$s 0</div></div>
+        <div class="usd-card"><div class="lbl">Marcelo</div><div class="val" id="usdMarceloVal">u$s 0</div></div>
+      </div>
+      <div class="small-add" id="btnAddUsdOp">+ Registrar compra/venta USD</div>
+      <div id="usdOpsList" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
+      <h3>Fondos / Inversiones</h3>
+      <div class="field">
+        <label>Fondos YPF</label>
+        <input type="text" inputmode="decimal" id="inpFondosYPF" placeholder="0">
+      </div>
+      <div class="resumen-line"><span class="lk">Fondo inversión (saldo)</span><span id="rFondoInversion" style="color:var(--accent)"></span></div>
+      <div class="small-add" id="btnAddFondoOp">+ Depósito / retiro fondo inversión</div>
+      <div id="fondoOpsList" style="margin-top:8px;"></div>
+    </div>
+  </section>
+
+  <!-- TAB 4: HISTORIAL -->
+  <section class="tab-panel" id="panel-historial">
+    <div class="card no-print">
+      <h3>Seleccionar mes</h3>
+      <select id="selHistMonth" style="width:100%; background:var(--card-strong); border:1px solid var(--border); color:var(--text); padding:12px; border-radius:12px; height:48px;"></select>
+      <button class="btn btn-secondary" style="margin-top:10px;" id="btnPrint">🖨️ Exportar / Imprimir</button>
+    </div>
+
+    <div class="print-area" id="printArea"></div>
+  </section>
+
+</main>
+
+<button class="fab no-print" id="btnAddGasto">+</button>
+
+<div class="side-nav-backdrop no-print" id="sideNavBackdrop"></div>
+<button class="side-nav-handle no-print" id="btnSideNavToggle">☰</button>
+<div class="side-nav-panel no-print" id="sideNavPanel">
+  <button data-tab="gastos" class="active"><span class="ic">🧾</span>Gastos</button>
+  <button data-tab="ingresos"><span class="ic">💵</span>Ingresos</button>
+  <button data-tab="resumen"><span class="ic">📊</span>Resumen</button>
+  <button data-tab="historial"><span class="ic">📅</span>Historial</button>
+</div>
+
+<!-- MODAL: GASTO -->
+<div class="modal-overlay" id="modalGasto">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span id="gastoModalTitle">Nuevo gasto</span><button class="close-x" data-close="modalGasto">✕</button></div>
+    <div class="field">
+      <label>Fecha</label>
+      <input type="date" id="gFecha">
+    </div>
+    <div class="field">
+      <label>Proveedor</label>
+      <input type="text" id="gProveedor" list="dlProveedores" placeholder="Ej: Farmacias Red">
+      <datalist id="dlProveedores"></datalist>
+    </div>
+    <div class="field">
+      <label>Detalle</label>
+      <input type="text" id="gDetalle" placeholder="Descripción del gasto">
+    </div>
+    <div class="field">
+      <label>Monto</label>
+      <input type="text" inputmode="decimal" id="gMonto" placeholder="0">
+    </div>
+    <div class="field">
+      <label>Administra</label>
+      <div class="radio-group">
+        <div class="radio-opt" id="gAdminClaudio" data-val="claudio">Claudio</div>
+        <div class="radio-opt" id="gAdminMarcelo" data-val="marcelo">Marcelo</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Categoría</label>
+      <select id="gCategoria"></select>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-danger no-print" id="btnDeleteGasto" style="display:none;">Eliminar</button>
+      <button class="btn btn-primary" id="btnSaveGasto">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: MONTH PICKER -->
+<div class="modal-overlay" id="modalMonthPicker">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span>Elegir mes</span><button class="close-x" data-close="modalMonthPicker">✕</button></div>
+    <div class="field">
+      <input type="month" id="inpNewMonth">
+    </div>
+    <button class="btn btn-secondary" id="btnGoToMonth" style="margin-bottom:14px;">Ir al mes</button>
+    <div class="month-picker-list" id="monthPickerList"></div>
+  </div>
+</div>
+
+<!-- MODAL: MENU (backup) -->
+<div class="modal-overlay" id="modalMenu">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span>Menú</span><button class="close-x" data-close="modalMenu">✕</button></div>
+    <div id="menuSessionLabel" style="text-align:center; color:var(--text-dim); font-size:13px; margin-bottom:14px;"></div>
+    <button class="btn btn-secondary" id="btnExportBackup" style="margin-bottom:10px;">⬇️ Exportar backup (JSON)</button>
+    <button class="btn btn-secondary" id="btnImportBackup" style="margin-bottom:10px;">⬆️ Importar backup (JSON)</button>
+    <input type="file" id="fileImport" accept="application/json" style="display:none;">
+    <button class="btn btn-secondary" id="btnResyncAll" style="margin-bottom:10px;">🔄 Resincronizar saldos entre meses</button>
+    <button class="btn btn-danger" id="btnResetAll" style="margin-bottom:10px;">🗑️ Borrar todos los datos</button>
+    <button class="btn btn-secondary" id="btnLogout">🚪 Cerrar sesión</button>
+  </div>
+</div>
+
+<!-- MODAL: USD OP -->
+<div class="modal-overlay" id="modalUsd">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span>Operación USD</span><button class="close-x" data-close="modalUsd">✕</button></div>
+    <div class="field">
+      <label>Fecha</label>
+      <input type="date" id="uFecha">
+    </div>
+    <div class="field">
+      <label>Tipo</label>
+      <div class="radio-group">
+        <div class="radio-opt" id="uTipoCompra" data-val="compra">Compra</div>
+        <div class="radio-opt" id="uTipoVenta" data-val="venta">Venta</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Administra</label>
+      <div class="radio-group">
+        <div class="radio-opt" id="uAdminClaudio" data-val="claudio">Claudio</div>
+        <div class="radio-opt" id="uAdminMarcelo" data-val="marcelo">Marcelo</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Monto USD</label>
+      <input type="text" inputmode="decimal" id="uMontoUsd" placeholder="0">
+    </div>
+    <div class="field">
+      <label>Cotización</label>
+      <input type="text" inputmode="decimal" id="uCotizacion" placeholder="0">
+    </div>
+    <div class="field">
+      <label>Monto ARS (auto)</label>
+      <input type="text" id="uMontoArs" readonly>
+    </div>
+    <button class="btn btn-secondary no-print" id="btnLinkGastoUsd" style="margin-bottom:14px; display:none;">🔗 Generar egreso/ingreso en pesos</button>
+    <div class="btn-row">
+      <button class="btn btn-danger no-print" id="btnDeleteUsd" style="display:none;">Eliminar</button>
+      <button class="btn btn-primary" id="btnSaveUsd">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: FONDO OP -->
+<div class="modal-overlay" id="modalFondo">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span>Movimiento fondo inversión</span><button class="close-x" data-close="modalFondo">✕</button></div>
+    <div class="field">
+      <label>Fecha</label>
+      <input type="date" id="fFecha">
+    </div>
+    <div class="field">
+      <label>Tipo</label>
+      <div class="radio-group">
+        <div class="radio-opt" id="fTipoDeposito" data-val="deposito">Depósito</div>
+        <div class="radio-opt" id="fTipoRetiro" data-val="retiro">Retiro</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Administra</label>
+      <div class="radio-group">
+        <div class="radio-opt" id="fAdminClaudio" data-val="claudio">Claudio</div>
+        <div class="radio-opt" id="fAdminMarcelo" data-val="marcelo">Marcelo</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Monto</label>
+      <input type="text" inputmode="decimal" id="fMonto" placeholder="0">
+    </div>
+    <button class="btn btn-secondary no-print" id="btnLinkGastoFondo" style="margin-bottom:14px; display:none;">🔗 Generar egreso/ingreso en pesos</button>
+    <div class="btn-row">
+      <button class="btn btn-danger no-print" id="btnDeleteFondo" style="display:none;">Eliminar</button>
+      <button class="btn btn-primary" id="btnSaveFondo">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- LOGIN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="app-title" style="justify-content:center; font-size:20px; margin-bottom:22px;">💰 CONTABILIDAD PAPA</div>
+    <div id="loginStep1">
+      <div style="text-align:center; color:var(--text-dim); margin-bottom:16px; font-size:14px;">¿Quién sos?</div>
+      <button class="btn btn-secondary" style="margin-bottom:10px;" data-persona="claudio">Claudio</button>
+      <button class="btn btn-secondary" style="margin-bottom:10px;" data-persona="marcelo">Marcelo</button>
+      <button class="btn btn-secondary" data-persona="andres">Andrés (solo lectura)</button>
+    </div>
+    <div id="loginStep2" style="display:none;">
+      <div style="text-align:center; color:var(--text-dim); margin-bottom:16px; font-size:14px;" id="loginPersonaLabel"></div>
+      <div class="field">
+        <label>PIN</label>
+        <input type="password" inputmode="numeric" id="loginPin" placeholder="••••••">
+      </div>
+      <div id="loginError" style="color:var(--red); font-size:13px; margin-bottom:10px; display:none;"></div>
+      <button class="btn btn-primary" id="btnLoginSubmit" style="margin-bottom:10px;">Entrar</button>
+      <button class="btn btn-secondary" id="btnLoginBack">Volver</button>
+    </div>
+    <div id="loginLoading" style="display:none; text-align:center; color:var(--text-dim); padding:20px;">Conectando…</div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+(function(){
+"use strict";
+
+var STORAGE_KEY = "CUENTAS_PAPI_V1"; // ya no se usa para guardar datos (ahora viven en Firestore); se deja declarada por compatibilidad.
+
+/* ---------- FIREBASE: sincronización en tiempo real + login ----------
+   Los datos ya no viven solo en este navegador: viven en un único
+   documento de Firestore compartido entre Claudio, Marcelo y Andrés. Cada
+   uno entra con su nombre + PIN (una cuenta de Firebase Authentication por
+   persona). Claudio y Marcelo pueden escribir; Andrés solo puede leer — eso
+   lo garantizan las REGLAS de Firestore (server-side), no solo esconder
+   botones acá. */
+var firebaseConfig = {
+  apiKey: "AIzaSyA6QmMNAsbNBTbX3DYpJE2IRMl9uiY15W8",
+  authDomain: "contabilidad-papa.firebaseapp.com",
+  projectId: "contabilidad-papa",
+  storageBucket: "contabilidad-papa.firebasestorage.app",
+  messagingSenderId: "477251708857",
+  appId: "1:477251708857:web:4544510f7cfaa023563868"
+};
+
+var ROLE_EMAILS = {
+  claudio: "claudio@contabilidadpapa.local",
+  marcelo: "marcelo@contabilidadpapa.local",
+  andres: "andres@contabilidadpapa.local"
+};
+var ROLE_LABELS = {claudio: "Claudio", marcelo: "Marcelo", andres: "Andrés"};
+var EDITOR_ROLES = ["claudio", "marcelo"];
+
+// Mientras no se cargue la config real de Firebase (los datos de arriba
+// siguen en "PENDIENTE"), la app funciona LOCAL: sin login, guardando en
+// este mismo navegador como siempre — para no dejar a nadie afuera
+// mientras se termina de armar la sincronización en la nube. Apenas se
+// reemplacen esos valores por los reales, se prende sola la parte de
+// Firebase (login + sync entre dispositivos).
+var FIREBASE_ENABLED = firebaseConfig.apiKey && firebaseConfig.apiKey !== "PENDIENTE";
+
+var auth = null, db = null, DOC_REF = null;
+if(FIREBASE_ENABLED){
+  firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  db = firebase.firestore();
+  DOC_REF = db.collection("contabilidad").doc("papa");
+}
+
+var currentRole = null;
+var READONLY = false;
+var appStarted = false;
+var firestoreUnsub = null;
+var selectedPersona = null;
+var pendingRender = false;
+
+var CATEGORIAS = [
+  {id:"residencia", label:"Residencia", sub:"Roy Care / Años Dorados", icon:"🏠"},
+  {id:"cuidadores", label:"Cuidadores", sub:"Guillermo, Marcela, Geronimo, Lucia...", icon:"🧑‍⚕️"},
+  {id:"salud", label:"Salud / Farmacia", sub:"DASPU, farmacias, médicos", icon:"💊"},
+  {id:"mant_ph", label:"Mant. PH Calasanz", sub:"Ferretería, mano de obra, pintura", icon:"🔧"},
+  {id:"mant_turrado", label:"Mant. Turrado Juárez", sub:"Casa, reparaciones", icon:"🏚️"},
+  {id:"consorcio", label:"Consorcio / Servicios", sub:"Cooperativa, Municipalidad", icon:"🧾"},
+  {id:"usd_fondos", label:"USD / Fondos", sub:"Compra/venta USD, fondo inversión", icon:"💱"},
+  {id:"otros", label:"Otros", sub:"Regalos, comidas, propinas", icon:"📦"}
+];
+
+var INGRESOS_CLAUDIO_DEF = [
+  {key:"pension", label:"Pensión", sub:"cuenta 900 - 00073007209"},
+  {key:"aguinaldoPension", label:"Aguinaldo Pensión", sub:"SAC, se cobra en junio"},
+  {key:"jubilacionAnses", label:"Jubilación Anses", sub:"cuenta 9150012122309"},
+  {key:"aguinaldoJubilacionAnses", label:"Aguinaldo Jubilación Anses", sub:"SAC, se cobra en junio"},
+  {key:"jubilacion931", label:"Jubilación 931", sub:"Caja Arquitectura"},
+  {key:"aguinaldoJubilacion931", label:"Aguinaldo Jubilación 931", sub:"SAC, se cobra en junio"},
+  {key:"cajaCompensadora", label:"Caja compensadora", sub:"variable, puede ser $0"},
+  {key:"fondoInversion", label:"Fondo inversión + utilidades", sub:"variable"},
+  {key:"alquilerTurrado", label:"Alquiler Turrado Juárez", sub:"variable, cuando aplica"}
+];
+
+var INGRESOS_MARCELO_DEF = [
+  {key:"alquilerDto2", label:"Alquiler dto 2", sub:"75%"},
+  {key:"alquilerDto4", label:"Alquiler dto 4", sub:""},
+  {key:"alquilerDto1PB", label:"Alquiler dto 1 PB", sub:""},
+  {key:"alquilerOficina4", label:"Alquiler oficina 4", sub:"3 meses juntos a veces, puede ser $0"},
+  {key:"rendicionSol", label:"Rendición Sol Casinelli", sub:"puede ser negativo"}
+];
+
+var DEFAULT_PROVEEDORES = ["Residencia Roy Care","Años Dorados","Guillermo Lucero","Marcela Garay","DASPU","Farmacias Red","Sanchez Antoniolli","Ferretería Lencinas","Luis Sanz","Andres (plomero)","Cooperativa Sta Mónica","Municipalidad de Córdoba","Lucia","Geronimo","Cencosud","Papanato"];
+
+// Los ingresos NUNCA se copian solos de un mes a otro (varían mes a mes y
+// hay que cargarlos a mano). Todo mes nuevo arranca esta lista en $0.
+function ingresosClaudioEnCero(){
+  var o = {};
+  INGRESOS_CLAUDIO_DEF.forEach(function(d){ o[d.key] = 0; });
+  return o;
+}
+function ingresosMarceloEnCero(){
+  var o = {};
+  INGRESOS_MARCELO_DEF.forEach(function(d){ o[d.key] = 0; });
+  return o;
+}
+
+var MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+var state = null;
+var currentTab = "gastos";
+var editingGastoId = null;
+var editingUsdId = null;
+var editingFondoId = null;
+var gAdminSel = "claudio";
+var uTipoSel = "compra";
+var uAdminSel = "claudio";
+var fTipoSel = "deposito";
+var fAdminSel = "claudio";
+
+/* ---------- UTILS ---------- */
+function uid(){ return "id_" + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+function todayStr(){
+  var d = new Date();
+  return d.toISOString().slice(0,10);
+}
+
+function formatARS(n){
+  n = Number(n) || 0;
+  var neg = n < 0;
+  n = Math.abs(n);
+  var parts = n.toFixed(2).split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return (neg ? "-" : "") + "$" + parts[0] + "," + parts[1];
+}
+
+function formatUSD(n){
+  n = Number(n) || 0;
+  var neg = n < 0;
+  n = Math.abs(n);
+  var parts = n.toFixed(2).split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return (neg ? "-" : "") + "u$s " + parts[0] + "," + parts[1];
+}
+
+// ---- Formato de los campos de monto (punto de miles, coma decimal) ----
+//
+// Mientras se está escribiendo, el campo se deja tal cual (sin tocar nada:
+// el usuario puede tipear los puntos de miles él mismo, usar coma, usar
+// punto decimal si su teclado manda eso, lo que sea). Recién al salir del
+// campo (blur) se interpreta todo junto y se prolija. Interpretar tecla por
+// tecla resultó frágil según el teclado del equipo, así que se abandonó.
+//
+// Regla para leer un número desde texto:
+//  - Si hay una coma, ESA es el separador decimal (uso argentino: la coma
+//    nunca es de miles). Los puntos, todos, son de miles y se descartan.
+//  - Si no hay coma pero hay un punto, se mira cuántos dígitos quedan
+//    después del último punto: si son 1 o 2, es un decimal "de urgencia"
+//    (el teclado mandó "." en vez de ","); si son 3, es un punto de miles
+//    normal (ej: "978.918" o "1.000.000") y se descarta como los demás.
+function parseARSInput(str){
+  str = String(str == null ? "" : str).trim();
+  if(str === "" || str === "-") return 0;
+  var neg = str.charAt(0) === "-";
+  var body = neg ? str.slice(1) : str;
+
+  var intRaw, decRaw;
+  var commaIdx = body.indexOf(",");
+  if(commaIdx !== -1){
+    intRaw = body.slice(0, commaIdx).replace(/\D/g, "");
+    decRaw = body.slice(commaIdx + 1).replace(/\D/g, "").slice(0, 2);
+  } else {
+    var lastDot = body.lastIndexOf(".");
+    var cola = lastDot === -1 ? "" : body.slice(lastDot + 1).replace(/\D/g, "");
+    var esDecimal = lastDot !== -1 && cola.length >= 1 && cola.length <= 2 &&
+      (lastDot + 1 + cola.length === body.length);
+    if(esDecimal){
+      intRaw = body.slice(0, lastDot).replace(/\D/g, "");
+      decRaw = cola;
+    } else {
+      intRaw = body.replace(/\D/g, "");
+      decRaw = "";
+    }
+  }
+
+  var n = parseFloat((intRaw || "0") + (decRaw ? "." + decRaw : ""));
+  if(isNaN(n)) return 0;
+  return neg ? -n : n;
+}
+
+// Convierte un número guardado a lo que hay que mostrar en el input
+// cuando NO se está editando: con puntos de miles y, si tiene centavos,
+// coma decimal.
+function numberToInputStr(n){
+  n = Number(n) || 0;
+  if(n === 0) return "0";
+  var neg = n < 0;
+  n = Math.abs(n);
+  var tieneDecimales = Math.round(n * 100) % 100 !== 0;
+  var parts = n.toFixed(2).split(".");
+  var intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  var result = tieneDecimales ? (intPart + "," + parts[1]) : intPart;
+  return (neg ? "-" : "") + result;
+}
+
+// Engancha el formateo a un input de monto: mientras se edita se deja
+// escribir libremente (nada de reformatear tecla a tecla, eso es lo que
+// rompía los montos según el teclado); recién al salir (blur) se
+// interpreta todo junto con la regla de arriba y se prolija.
+function attachLiveThousands(inputEl){
+  inputEl.addEventListener("blur", function(){
+    var n = parseARSInput(inputEl.value);
+    inputEl.value = numberToInputStr(n);
+  });
+}
+
+function formatDateDisplay(iso){
+  if(!iso) return "";
+  var p = iso.split("-");
+  if(p.length !== 3) return iso;
+  return p[2] + "/" + p[1] + "/" + p[0].slice(2);
+}
+
+function monthLabel(key){
+  var p = key.split("-");
+  var idx = parseInt(p[1],10) - 1;
+  return MESES[idx] + " " + p[0];
+}
+
+function shiftMonth(key, delta){
+  var p = key.split("-");
+  var y = parseInt(p[0],10), m = parseInt(p[1],10) - 1;
+  var d = new Date(y, m + delta, 1);
+  var ny = d.getFullYear();
+  var nm = ("0" + (d.getMonth()+1)).slice(-2);
+  return ny + "-" + nm;
+}
+
+// El mes más lejano al que se puede navegar/avanzar: un mes después del
+// último mes REAL (guardado) que exista. Así no se puede "pasear" por
+// meses futuros sin cargar nada — como mucho se puede abrir el próximo
+// mes a cargar. Las claves YYYY-MM se comparan bien como strings.
+function getMaxNavigableMonth(){
+  var keys = Object.keys(state.months);
+  if(keys.length === 0) return state.currentMonth;
+  keys.sort();
+  return shiftMonth(keys[keys.length - 1], 1);
+}
+
+function catInfo(id){
+  for(var i=0;i<CATEGORIAS.length;i++){ if(CATEGORIAS[i].id === id) return CATEGORIAS[i]; }
+  return CATEGORIAS[CATEGORIAS.length-1];
+}
+
+function toast(msg){
+  var t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(function(){ t.classList.remove("show"); }, 1800);
+}
+
+/* ---------- STORAGE (Firestore) ---------- */
+function defaultState(){
+  var curMonth = todayStr().slice(0,7);
+  var s = {
+    currentMonth: curMonth,
+    expenses: [],
+    months: {},
+    proveedores: DEFAULT_PROVEEDORES.slice()
+  };
+  s.months[curMonth] = emptyMonthRecord();
+  return s;
+}
+// (emptyMonthRecord está definida más abajo; al ser "function" queda
+// hoisted, así que ya se puede usar acá arriba sin problema)
+
+function normalizeState(s){
+  if(!s.months) s.months = {};
+  if(!s.expenses) s.expenses = [];
+  if(!s.proveedores) s.proveedores = DEFAULT_PROVEEDORES.slice();
+  if(!s.currentMonth) s.currentMonth = todayStr().slice(0,7);
+  return s;
+}
+
+// Si llega un cambio remoto (otro dispositivo, u otra pestaña) mientras hay
+// un campo de texto enfocado (alguien escribiendo), no se pisa la pantalla:
+// se posterga el render hasta que termine de escribir (blur), para no
+// perderle el cursor ni lo que estaba tipeando a mitad de camino.
+function safeRenderAll(){
+  var ae = document.activeElement;
+  if(ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")){
+    pendingRender = true;
+    return;
+  }
+  renderAll();
+}
+document.addEventListener("focusout", function(){
+  if(pendingRender){ pendingRender = false; renderAll(); }
+});
+
+function startFirestoreSync(){
+  if(firestoreUnsub) firestoreUnsub();
+  firestoreUnsub = DOC_REF.onSnapshot(function(snap){
+    // A Andrés (solo lectura) no lo "empujamos" de vuelta al mes que estén
+    // mirando Claudio/Marcelo si él está viendo otro mes en su celular.
+    var preservedMonth = (READONLY && state) ? state.currentMonth : null;
+
+    if(snap.exists){
+      state = normalizeState(snap.data());
+    } else {
+      state = defaultState();
+      if(!READONLY) DOC_REF.set(state);
+    }
+    if(preservedMonth) state.currentMonth = preservedMonth;
+
+    if(!appStarted){
+      appStarted = true;
+      startApp();
+    } else {
+      safeRenderAll();
+    }
+  }, function(){
+    toast("Error de conexión con la base de datos");
+  });
+}
+
+// Modo local (sin Firebase todavía configurado): mismo storage de siempre,
+// en este navegador únicamente. Se usa mientras FIREBASE_ENABLED sea false.
+function loadStateLocal(){
+  var raw = localStorage.getItem(STORAGE_KEY);
+  if(raw){
+    try{
+      state = normalizeState(JSON.parse(raw));
+      return;
+    }catch(e){ /* sigue abajo y arranca de cero */ }
+  }
+  state = defaultState();
+  saveState();
+}
+
+function saveState(){
+  if(READONLY){ toast("Modo solo lectura: no se puede guardar"); return; }
+  if(!state) return;
+  if(!FIREBASE_ENABLED){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return;
+  }
+  DOC_REF.set(state).catch(function(){
+    toast("No se pudo guardar (¿sin conexión?)");
+  });
+}
+
+// Migración de una sola vez: borra los meses "fantasma" que hayan quedado
+// guardados por versiones anteriores de la app (simplemente por haber
+// navegado hasta ellos, sin haber cargado nunca un gasto, USD ni fondo).
+// Un mes se considera real solo si tiene al menos un gasto, una operación
+// de USD o un movimiento de fondo cargado a mano. Corre una única vez.
+function limpiarMesesFantasmaUnaVez(){
+  if(state.migradoLimpiezaFantasmaV1) return false;
+  Object.keys(state.months).forEach(function(key){
+    var rec = state.months[key];
+    var tieneGastos = state.expenses.some(function(e){ return e.mes === key; });
+    var tieneUsd = (rec.usdOps || []).length > 0;
+    var tieneFondo = (rec.fondoInversionOps || []).length > 0;
+    if(!tieneGastos && !tieneUsd && !tieneFondo){
+      delete state.months[key];
+    }
+  });
+  // Se marca como migrado siempre (haya encontrado algo para borrar o no),
+  // para que esta limpieza corra una única vez y nunca vuelva a tocar un
+  // mes real que el usuario cargue en el futuro solo con ingresos.
+  state.migradoLimpiezaFantasmaV1 = true;
+  return true;
+}
+
+// Migración de una sola vez: las operaciones de USD y de fondo inversión
+// que ya existían antes de que compra/depósito generaran automáticamente
+// un gasto/ingreso en pesos se marcan como "legacySinLink" para que nunca
+// se les enganche un gasto automático (aunque se editen después). Esto es
+// clave para no duplicar los gastos "Compra USD" que ya se habían cargado
+// a mano en meses anteriores (mayo/junio/julio), que ya están contados.
+function migrarLegacySinLinkUnaVez(){
+  if(state.migradoLinkGastosV1) return false;
+  Object.keys(state.months).forEach(function(key){
+    var rec = state.months[key];
+    (rec.usdOps || []).forEach(function(op){ op.legacySinLink = true; });
+    (rec.fondoInversionOps || []).forEach(function(op){ op.legacySinLink = true; });
+  });
+  state.migradoLinkGastosV1 = true;
+  return true;
+}
+
+/* ---------- MONTH RECORD MGMT ---------- */
+function emptyMonthRecord(){
+  return {
+    saldoAnteriorClaudio: 0,
+    saldoAnteriorMarcelo: 0,
+    ingresosClaudio: ingresosClaudioEnCero(),
+    ingresosMarcelo: ingresosMarceloEnCero(),
+    usdClaudioAnterior: 0,
+    usdMarceloAnterior: 0,
+    usdOps: [],
+    fondosYPF: 0,
+    fondoInversionAnterior: 0,
+    fondoInversionOps: []
+  };
+}
+
+// Devuelve el registro real del mes si ya existe, o uno "virtual" (proyectado
+// a partir del último mes real, pero NUNCA guardado) para poder mostrar
+// totales al navegar por meses sin datos cargados sin contaminar el storage.
+function getMonthRecord(key){
+  if(state.months[key]) return state.months[key];
+  return buildVirtualMonth(key);
+}
+
+// Busca el mes real más cercano hacia atrás (con un límite razonable) y usa
+// SU cierre como base de la vista previa — sin importar cuántos meses vacíos
+// haya en el medio (no se van sumando entre sí). Solo se arrastran saldos
+// reales (saldo anterior, USD y fondos), NUNCA los ingresos: esos varían
+// mes a mes y hay que cargarlos a mano cada vez, por eso siempre arrancan
+// en $0. No escribe nada en state.months: es solo una vista previa.
+function buildVirtualMonth(key){
+  var cursor = shiftMonth(key, -1);
+  var steps = 0;
+  while(!state.months[cursor] && steps < 120){
+    cursor = shiftMonth(cursor, -1);
+    steps++;
+  }
+
+  var rec = emptyMonthRecord();
+  var anchor = state.months[cursor];
+  if(anchor){
+    var anchorTotals = computeMonthTotals(cursor);
+    rec.saldoAnteriorClaudio = anchorTotals.saldoClaudio;
+    rec.saldoAnteriorMarcelo = anchorTotals.saldoMarcelo;
+    rec.usdClaudioAnterior = anchorTotals.usdClaudioFinal;
+    rec.usdMarceloAnterior = anchorTotals.usdMarceloFinal;
+    rec.fondosYPF = anchor.fondosYPF;
+    rec.fondoInversionAnterior = anchorTotals.fondoInversionFinal;
+  }
+  return rec;
+}
+
+// Crea y PERSISTE el mes en el storage. Se llama únicamente cuando el
+// usuario efectivamente carga algo (gasto, ingreso, saldo, USD, fondo) —
+// nunca solo por navegar o mirar un mes.
+function materializeMonth(key){
+  if(state.months[key]) return state.months[key];
+  var rec = buildVirtualMonth(key);
+  state.months[key] = rec;
+  saveState();
+  return rec;
+}
+
+function computeMonthTotals(key){
+  var rec = getMonthRecord(key);
+  if(!rec){
+    return {ingresosClaudioTotal:0, ingresosMarceloTotal:0, gastosClaudioTotal:0, gastosMarceloTotal:0,
+      saldoClaudio:0, saldoMarcelo:0, saldoAlDia:0, usdClaudioFinal:0, usdMarceloFinal:0, fondoInversionFinal:0};
+  }
+  var ic = 0, im = 0;
+  Object.keys(rec.ingresosClaudio).forEach(function(k){ ic += Number(rec.ingresosClaudio[k]) || 0; });
+  Object.keys(rec.ingresosMarcelo).forEach(function(k){ im += Number(rec.ingresosMarcelo[k]) || 0; });
+
+  var gc = 0, gm = 0;
+  state.expenses.forEach(function(e){
+    if(e.mes !== key) return;
+    if(e.admin === "claudio") gc += Number(e.monto) || 0;
+    else if(e.admin === "marcelo") gm += Number(e.monto) || 0;
+  });
+
+  var totalIngresosClaudio = (Number(rec.saldoAnteriorClaudio)||0) + ic;
+  var totalIngresosMarcelo = (Number(rec.saldoAnteriorMarcelo)||0) + im;
+  var saldoClaudio = totalIngresosClaudio - gc;
+  var saldoMarcelo = totalIngresosMarcelo - gm;
+
+  var usdC = Number(rec.usdClaudioAnterior) || 0;
+  var usdM = Number(rec.usdMarceloAnterior) || 0;
+  (rec.usdOps || []).forEach(function(op){
+    var mult = op.tipo === "compra" ? 1 : -1;
+    if(op.admin === "claudio") usdC += mult * (Number(op.montoUsd)||0);
+    else usdM += mult * (Number(op.montoUsd)||0);
+  });
+
+  var fondoInv = Number(rec.fondoInversionAnterior) || 0;
+  (rec.fondoInversionOps || []).forEach(function(op){
+    var mult = op.tipo === "deposito" ? 1 : -1;
+    fondoInv += mult * (Number(op.monto)||0);
+  });
+
+  return {
+    ingresosClaudioTotal: totalIngresosClaudio,
+    ingresosMarceloTotal: totalIngresosMarcelo,
+    gastosClaudioTotal: gc,
+    gastosMarceloTotal: gm,
+    saldoClaudio: saldoClaudio,
+    saldoMarcelo: saldoMarcelo,
+    saldoAlDia: saldoClaudio + saldoMarcelo,
+    usdClaudioFinal: usdC,
+    usdMarceloFinal: usdM,
+    fondoInversionFinal: fondoInv
+  };
+}
+
+/* ---------- SINCRONIZACIÓN DE "SALDO ANTERIOR" ENTRE MESES ----------
+   Un mes REAL guarda su saldo anterior como un valor fijo, tomado del
+   cierre del mes previo en el momento en que se cargó. Si DESPUÉS se edita
+   ese mes previo (se agrega un gasto olvidado, se corrige un ingreso,
+   etc.), el mes siguiente no se entera solo — se queda con el valor viejo
+   congelado, y ahí es cuando "no da la contabilidad". Estas funciones
+   detectan ese desfasaje y permiten corregirlo a pedido (no solas, para
+   que quede claro qué cambió y no se pisen números sin querer). */
+function saldoAnteriorDesincronizado(key){
+  if(!state.months[key]) return null;
+  var keys = Object.keys(state.months).filter(function(k){ return k < key; }).sort();
+  if(keys.length === 0) return null;
+  var prevKey = keys[keys.length - 1];
+  var prevTotals = computeMonthTotals(prevKey);
+  var rec = state.months[key];
+  var EPS = 0.5;
+  var difC = prevTotals.saldoClaudio - (Number(rec.saldoAnteriorClaudio)||0);
+  var difM = prevTotals.saldoMarcelo - (Number(rec.saldoAnteriorMarcelo)||0);
+  var difUsdC = prevTotals.usdClaudioFinal - (Number(rec.usdClaudioAnterior)||0);
+  var difUsdM = prevTotals.usdMarceloFinal - (Number(rec.usdMarceloAnterior)||0);
+  var difFondo = prevTotals.fondoInversionFinal - (Number(rec.fondoInversionAnterior)||0);
+  if(Math.abs(difC) <= EPS && Math.abs(difM) <= EPS && Math.abs(difUsdC) <= EPS &&
+     Math.abs(difUsdM) <= EPS && Math.abs(difFondo) <= EPS){
+    return null;
+  }
+  return {prevKey: prevKey, difClaudio: difC, difMarcelo: difM, nuevo: prevTotals};
+}
+
+function resincronizarSaldoAnterior(key){
+  var info = saldoAnteriorDesincronizado(key);
+  if(!info) return false;
+  var rec = state.months[key];
+  rec.saldoAnteriorClaudio = info.nuevo.saldoClaudio;
+  rec.saldoAnteriorMarcelo = info.nuevo.saldoMarcelo;
+  rec.usdClaudioAnterior = info.nuevo.usdClaudioFinal;
+  rec.usdMarceloAnterior = info.nuevo.usdMarceloFinal;
+  rec.fondoInversionAnterior = info.nuevo.fondoInversionFinal;
+  return true;
+}
+
+// Recorre todos los meses reales en orden y va resincronizando en cadena:
+// arreglar un mes puede hacer que el siguiente quede desincronizado a su
+// vez (ej: junio cambia -> julio se arregla -> eso mueve el cierre de
+// julio -> agosto queda desincronizado), así que se repite hasta que no
+// quede ninguno pendiente.
+function resincronizarTodosLosMeses(){
+  var keys = Object.keys(state.months).sort();
+  var cambios = 0;
+  var siguioCambiando = true;
+  var vueltas = 0;
+  while(siguioCambiando && vueltas < 24){
+    siguioCambiando = false;
+    vueltas++;
+    keys.forEach(function(key){
+      if(resincronizarSaldoAnterior(key)){
+        cambios++;
+        siguioCambiando = true;
+      }
+    });
+  }
+  return cambios;
+}
+
+/* ---------- TABS ---------- */
+function openSideNav(){
+  document.getElementById("sideNavPanel").classList.add("open");
+  document.getElementById("sideNavBackdrop").classList.add("show");
+}
+function closeSideNav(){
+  document.getElementById("sideNavPanel").classList.remove("open");
+  document.getElementById("sideNavBackdrop").classList.remove("show");
+}
+function toggleSideNav(){
+  var panel = document.getElementById("sideNavPanel");
+  if(panel.classList.contains("open")) closeSideNav(); else openSideNav();
+}
+
+function switchTab(tab){
+  currentTab = tab;
+  document.querySelectorAll(".tab-panel").forEach(function(p){ p.classList.remove("active"); });
+  document.getElementById("panel-" + tab).classList.add("active");
+  document.querySelectorAll("#sideNavPanel button").forEach(function(b){
+    b.classList.toggle("active", b.getAttribute("data-tab") === tab);
+  });
+  document.getElementById("btnAddGasto").style.display = (tab === "gastos") ? "flex" : "none";
+  document.getElementById("ingresosSaveBar").style.display = (tab === "ingresos") ? "block" : "none";
+  closeSideNav();
+  renderAll();
+}
+
+/* ---------- RENDER: HEADER ---------- */
+function renderHeader(){
+  document.getElementById("lblMonth").textContent = monthLabel(state.currentMonth);
+  document.getElementById("monthStatus").classList.toggle("show", !state.months[state.currentMonth]);
+
+  var maxMonth = getMaxNavigableMonth();
+  var btnNext = document.getElementById("btnNextMonth");
+  var atMax = shiftMonth(state.currentMonth, 1) > maxMonth;
+  btnNext.disabled = atMax;
+  btnNext.style.opacity = atMax ? "0.35" : "1";
+}
+
+/* ---------- RENDER: GASTOS ---------- */
+function renderGastos(){
+  var list = state.expenses.filter(function(e){ return e.mes === state.currentMonth; });
+  list.sort(function(a,b){ return (a.fecha || "").localeCompare(b.fecha || ""); });
+
+  var container = document.getElementById("gastosList");
+  if(list.length === 0){
+    container.innerHTML = '<div class="empty-state"><div class="big">🧾</div>Sin gastos cargados este mes.<br>Tocá el botón + para agregar uno.</div>';
+  } else {
+    var html = "";
+    list.forEach(function(e){
+      var c = catInfo(e.categoria);
+      var badgeClass = e.admin === "claudio" ? "badge-claudio" : "badge-marcelo";
+      var badgeText = e.admin === "claudio" ? "C" : "M";
+      var montoColor = (Number(e.monto)||0) < 0 ? "var(--green)" : "var(--red)";
+      html += '<div class="gasto-row" data-id="'+e.id+'">' +
+        '<div class="gasto-cat-icon">'+c.icon+'</div>' +
+        '<div class="gasto-info">' +
+          '<div class="gasto-prov">'+escapeHtml(e.proveedor || "(sin proveedor)")+'</div>' +
+          '<div class="gasto-detalle">'+escapeHtml(e.detalle || "")+'</div>' +
+          '<div class="gasto-meta"><span class="badge '+badgeClass+'">'+badgeText+'</span>'+formatDateDisplay(e.fecha)+' · '+c.label+'</div>' +
+        '</div>' +
+        '<div class="gasto-right">' +
+          '<div class="gasto-monto" style="color:'+montoColor+'">'+formatARS(e.monto)+'</div>' +
+        '</div>' +
+        '<button class="del-btn" data-del="'+e.id+'">✕</button>' +
+      '</div>';
+    });
+    container.innerHTML = html;
+  }
+
+  var totC = 0, totM = 0;
+  list.forEach(function(e){
+    if(e.admin === "claudio") totC += Number(e.monto)||0;
+    else totM += Number(e.monto)||0;
+  });
+  document.getElementById("totGastosClaudio").textContent = formatARS(totC);
+  document.getElementById("totGastosMarcelo").textContent = formatARS(totM);
+  document.getElementById("totGastosTotal").textContent = formatARS(totC + totM);
+
+  container.querySelectorAll(".gasto-row").forEach(function(row){
+    row.addEventListener("click", function(ev){
+      if(ev.target.closest(".del-btn")) return;
+      openGastoModal(row.getAttribute("data-id"));
+    });
+  });
+  container.querySelectorAll(".del-btn").forEach(function(btn){
+    btn.addEventListener("click", function(ev){
+      ev.stopPropagation();
+      var id = btn.getAttribute("data-del");
+      if(confirm("¿Eliminar este gasto?")){
+        state.expenses = state.expenses.filter(function(e){ return e.id !== id; });
+        saveState();
+        renderAll();
+        toast("Gasto eliminado");
+      }
+    });
+  });
+}
+
+function escapeHtml(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
+  });
+}
+
+/* ---------- MODAL: GASTO ---------- */
+function refreshProveedoresDatalist(){
+  var dl = document.getElementById("dlProveedores");
+  var recent = state.proveedores.slice(0, 30);
+  dl.innerHTML = recent.map(function(p){ return '<option value="'+escapeHtml(p)+'">'; }).join("");
+}
+
+function populateCategoriaSelect(){
+  var sel = document.getElementById("gCategoria");
+  sel.innerHTML = CATEGORIAS.map(function(c){ return '<option value="'+c.id+'">'+c.icon+' '+c.label+'</option>'; }).join("");
+}
+
+function setGAdmin(val){
+  gAdminSel = val;
+  document.getElementById("gAdminClaudio").classList.toggle("sel-claudio", val === "claudio");
+  document.getElementById("gAdminMarcelo").classList.toggle("sel-marcelo", val === "marcelo");
+}
+
+function openGastoModal(id){
+  refreshProveedoresDatalist();
+  populateCategoriaSelect();
+  editingGastoId = id || null;
+  var btnDelete = document.getElementById("btnDeleteGasto");
+  if(id){
+    var e = state.expenses.find(function(x){ return x.id === id; });
+    document.getElementById("gastoModalTitle").textContent = "Editar gasto";
+    document.getElementById("gFecha").value = e.fecha;
+    document.getElementById("gProveedor").value = e.proveedor;
+    document.getElementById("gDetalle").value = e.detalle;
+    document.getElementById("gMonto").value = numberToInputStr(e.monto);
+    document.getElementById("gCategoria").value = e.categoria;
+    setGAdmin(e.admin);
+    btnDelete.style.display = "block";
+  } else {
+    document.getElementById("gastoModalTitle").textContent = "Nuevo gasto";
+    document.getElementById("gFecha").value = todayStr();
+    document.getElementById("gProveedor").value = "";
+    document.getElementById("gDetalle").value = "";
+    document.getElementById("gMonto").value = "";
+    document.getElementById("gCategoria").value = CATEGORIAS[0].id;
+    setGAdmin("claudio");
+    btnDelete.style.display = "none";
+  }
+  openModal("modalGasto");
+}
+
+function saveGasto(){
+  var fecha = document.getElementById("gFecha").value;
+  var proveedor = document.getElementById("gProveedor").value.trim();
+  var detalle = document.getElementById("gDetalle").value.trim();
+  var monto = parseARSInput(document.getElementById("gMonto").value);
+  var categoria = document.getElementById("gCategoria").value;
+
+  if(!fecha){ toast("Falta la fecha"); return; }
+  if(!proveedor){ toast("Falta el proveedor"); return; }
+  if(isNaN(monto) || monto === 0){ toast("Ingresá un monto válido"); return; }
+
+  var mes = fecha.slice(0,7);
+  materializeMonth(mes);
+
+  if(editingGastoId){
+    var e = state.expenses.find(function(x){ return x.id === editingGastoId; });
+    e.fecha = fecha; e.proveedor = proveedor; e.detalle = detalle;
+    e.monto = monto; e.admin = gAdminSel; e.categoria = categoria; e.mes = mes;
+  } else {
+    state.expenses.push({
+      id: uid(), fecha: fecha, proveedor: proveedor, detalle: detalle,
+      monto: monto, admin: gAdminSel, categoria: categoria, mes: mes
+    });
+  }
+
+  // update proveedores frecuentes (most recent first, unique, cap 40)
+  state.proveedores = state.proveedores.filter(function(p){ return p.toLowerCase() !== proveedor.toLowerCase(); });
+  state.proveedores.unshift(proveedor);
+  if(state.proveedores.length > 40) state.proveedores = state.proveedores.slice(0,40);
+
+  saveState();
+  closeModal("modalGasto");
+  if(mes !== state.currentMonth){ state.currentMonth = mes; saveState(); }
+  renderAll();
+  toast("Gasto guardado");
+}
+
+function deleteGastoFromModal(){
+  if(!editingGastoId) return;
+  if(confirm("¿Eliminar este gasto?")){
+    state.expenses = state.expenses.filter(function(e){ return e.id !== editingGastoId; });
+    saveState();
+    closeModal("modalGasto");
+    renderAll();
+    toast("Gasto eliminado");
+  }
+}
+
+/* ---------- RENDER: INGRESOS ---------- */
+function renderIngresos(){
+  var rec = getMonthRecord(state.currentMonth);
+
+  var claudioHtml = "";
+  INGRESOS_CLAUDIO_DEF.forEach(function(def){
+    var val = rec.ingresosClaudio[def.key];
+    claudioHtml += '<div class="ingreso-row">' +
+      '<div class="ingreso-lbl"><div class="l1">'+def.label+'</div>'+(def.sub ? '<div class="l2">'+def.sub+'</div>' : '')+'</div>' +
+      '<input type="text" inputmode="decimal" data-admin="claudio" data-key="'+def.key+'" value="'+numberToInputStr(val)+'">' +
+    '</div>';
+  });
+  document.getElementById("ingresosClaudioList").innerHTML = claudioHtml;
+
+  var marceloHtml = "";
+  INGRESOS_MARCELO_DEF.forEach(function(def){
+    var val = rec.ingresosMarcelo[def.key];
+    marceloHtml += '<div class="ingreso-row">' +
+      '<div class="ingreso-lbl"><div class="l1">'+def.label+'</div>'+(def.sub ? '<div class="l2">'+def.sub+'</div>' : '')+'</div>' +
+      '<input type="text" inputmode="decimal" data-admin="marcelo" data-key="'+def.key+'" value="'+numberToInputStr(val)+'">' +
+    '</div>';
+  });
+  document.getElementById("ingresosMarceloList").innerHTML = marceloHtml;
+
+  document.querySelectorAll("#ingresosClaudioList input, #ingresosMarceloList input").forEach(function(inp){
+    attachLiveThousands(inp);
+    inp.readOnly = READONLY;
+  });
+}
+
+function guardarIngresos(){
+  var rec = materializeMonth(state.currentMonth);
+  document.querySelectorAll("#ingresosClaudioList input").forEach(function(inp){
+    rec.ingresosClaudio[inp.getAttribute("data-key")] = parseARSInput(inp.value);
+  });
+  document.querySelectorAll("#ingresosMarceloList input").forEach(function(inp){
+    rec.ingresosMarcelo[inp.getAttribute("data-key")] = parseARSInput(inp.value);
+  });
+  saveState();
+  renderAll();
+  toast("Ingresos guardados");
+}
+
+/* ---------- RENDER: RESUMEN ---------- */
+function renderResumen(){
+  var rec = getMonthRecord(state.currentMonth);
+  var totals = computeMonthTotals(state.currentMonth);
+
+  var cardDesync = document.getElementById("cardDesync");
+  var desync = state.months[state.currentMonth] ? saldoAnteriorDesincronizado(state.currentMonth) : null;
+  if(desync && !READONLY){
+    cardDesync.style.display = "block";
+    document.getElementById("desyncMsg").textContent =
+      "El cierre de " + monthLabel(desync.prevKey) + " cambió después de haber cargado este mes. " +
+      "Saldo Claudio: diferencia de " + formatARS(desync.difClaudio) + ". " +
+      "Saldo Marcelo: diferencia de " + formatARS(desync.difMarcelo) + ".";
+  } else {
+    cardDesync.style.display = "none";
+  }
+
+  document.getElementById("inpSaldoAntClaudio").value = numberToInputStr(rec.saldoAnteriorClaudio);
+  document.getElementById("inpSaldoAntMarcelo").value = numberToInputStr(rec.saldoAnteriorMarcelo);
+
+  document.getElementById("rClaudioIngresos").textContent = formatARS(totals.ingresosClaudioTotal);
+  document.getElementById("rClaudioGastos").textContent = formatARS(totals.gastosClaudioTotal);
+  var elCS = document.getElementById("rClaudioSaldo");
+  elCS.textContent = formatARS(totals.saldoClaudio);
+  elCS.style.color = totals.saldoClaudio < 0 ? "var(--red)" : "var(--green)";
+
+  document.getElementById("rMarceloIngresos").textContent = formatARS(totals.ingresosMarceloTotal);
+  document.getElementById("rMarceloGastos").textContent = formatARS(totals.gastosMarceloTotal);
+  var elMS = document.getElementById("rMarceloSaldo");
+  elMS.textContent = formatARS(totals.saldoMarcelo);
+  elMS.style.color = totals.saldoMarcelo < 0 ? "var(--red)" : "var(--green)";
+
+  var elSaldoDia = document.getElementById("saldoAlDia");
+  elSaldoDia.textContent = formatARS(totals.saldoAlDia);
+  elSaldoDia.classList.remove("pos","neg","warn");
+  elSaldoDia.classList.add(totals.saldoAlDia < 0 ? "neg" : "pos");
+
+  document.getElementById("usdClaudioVal").textContent = formatUSD(totals.usdClaudioFinal);
+  document.getElementById("usdMarceloVal").textContent = formatUSD(totals.usdMarceloFinal);
+
+  document.getElementById("inpFondosYPF").value = numberToInputStr(rec.fondosYPF);
+  document.getElementById("rFondoInversion").textContent = formatARS(totals.fondoInversionFinal);
+
+  // USD ops list
+  var usdOpsHtml = "";
+  (rec.usdOps || []).slice().sort(function(a,b){return (a.fecha||"").localeCompare(b.fecha||"");}).forEach(function(op){
+    var sign = op.tipo === "compra" ? "+" : "-";
+    var color = op.tipo === "compra" ? "var(--green)" : "var(--red)";
+    var adminBadge = op.admin === "claudio" ? '<span class="badge badge-claudio">C</span>' : '<span class="badge badge-marcelo">M</span>';
+    usdOpsHtml += '<div class="gasto-row" data-usdid="'+op.id+'" style="padding:8px 4px;">' +
+      '<div class="gasto-info">' +
+        '<div class="gasto-prov" style="font-size:14px;">'+adminBadge+(op.tipo === "compra" ? "Compra" : "Venta")+' USD</div>' +
+        '<div class="gasto-meta">'+formatDateDisplay(op.fecha)+' · cotiz. '+formatARS(op.cotizacion)+'</div>' +
+      '</div>' +
+      '<div class="gasto-right"><div class="gasto-monto" style="color:'+color+'">'+sign+formatUSD(op.montoUsd)+'</div></div>' +
+    '</div>';
+  });
+  document.getElementById("usdOpsList").innerHTML = usdOpsHtml;
+  document.querySelectorAll("#usdOpsList [data-usdid]").forEach(function(row){
+    row.addEventListener("click", function(){ openUsdModal(row.getAttribute("data-usdid")); });
+  });
+
+  // Fondo ops list
+  var fondoOpsHtml = "";
+  (rec.fondoInversionOps || []).slice().sort(function(a,b){return (a.fecha||"").localeCompare(b.fecha||"");}).forEach(function(op){
+    var sign = op.tipo === "deposito" ? "+" : "-";
+    var color = op.tipo === "deposito" ? "var(--green)" : "var(--red)";
+    fondoOpsHtml += '<div class="gasto-row" data-fondoid="'+op.id+'" style="padding:8px 4px;">' +
+      '<div class="gasto-info">' +
+        '<div class="gasto-prov" style="font-size:14px;">'+(op.tipo === "deposito" ? "Depósito" : "Retiro")+'</div>' +
+        '<div class="gasto-meta">'+formatDateDisplay(op.fecha)+'</div>' +
+      '</div>' +
+      '<div class="gasto-right"><div class="gasto-monto" style="color:'+color+'">'+sign+formatARS(op.monto)+'</div></div>' +
+    '</div>';
+  });
+  document.getElementById("fondoOpsList").innerHTML = fondoOpsHtml;
+  document.querySelectorAll("#fondoOpsList [data-fondoid]").forEach(function(row){
+    row.addEventListener("click", function(){ openFondoModal(row.getAttribute("data-fondoid")); });
+  });
+}
+
+function guardarSaldosAnteriores(){
+  var rec = materializeMonth(state.currentMonth);
+  rec.saldoAnteriorClaudio = parseARSInput(document.getElementById("inpSaldoAntClaudio").value);
+  rec.saldoAnteriorMarcelo = parseARSInput(document.getElementById("inpSaldoAntMarcelo").value);
+  saveState();
+  renderResumen();
+}
+
+function guardarFondosYPF(){
+  var rec = materializeMonth(state.currentMonth);
+  rec.fondosYPF = parseARSInput(document.getElementById("inpFondosYPF").value);
+  saveState();
+  renderResumen();
+}
+
+/* ---------- VÍNCULO AUTOMÁTICO USD/FONDO <-> GASTO EN PESOS ----------
+   Comprar dólares o depositar en el fondo de inversión saca plata de
+   los pesos disponibles de quien lo hizo (un egreso); vender dólares o
+   retirar del fondo devuelve esa plata (un ingreso). En vez de tener que
+   cargar ese movimiento a mano como un gasto aparte, se genera y
+   mantiene solo, enganchado a la operación de USD/fondo por su id.
+   Las operaciones que ya existían antes de esta función (legacySinLink)
+   quedan afuera para no duplicar los gastos que ya se habían cargado a
+   mano en meses anteriores. */
+function upsertGastoVinculado(op, mes, monto, proveedor, detalle){
+  var g = op.linkedGastoId ? state.expenses.find(function(e){ return e.id === op.linkedGastoId; }) : null;
+  if(!g){
+    g = {id: uid(), origenAuto: true};
+    state.expenses.push(g);
+    op.linkedGastoId = g.id;
+  }
+  g.fecha = op.fecha; g.proveedor = proveedor; g.detalle = detalle;
+  g.monto = monto; g.admin = op.admin; g.categoria = "usd_fondos"; g.mes = mes;
+  g.origenAuto = true;
+}
+
+function borrarGastoVinculado(op){
+  if(!op || !op.linkedGastoId) return;
+  state.expenses = state.expenses.filter(function(e){ return e.id !== op.linkedGastoId; });
+}
+
+function sincronizarGastoVinculadoUsd(op, mes){
+  if(op.legacySinLink) return;
+  var monto = (Number(op.montoUsd)||0) * (Number(op.cotizacion)||0);
+  var signo = op.tipo === "compra" ? 1 : -1;
+  var proveedor = op.tipo === "compra" ? "Compra USD" : "Venta USD";
+  var detalle = (op.tipo === "compra" ? "Compra" : "Venta") + " u$s " + numberToInputStr(op.montoUsd) + " a $" + numberToInputStr(op.cotizacion) + " (auto)";
+  upsertGastoVinculado(op, mes, signo * monto, proveedor, detalle);
+}
+
+function sincronizarGastoVinculadoFondo(op, mes){
+  if(op.legacySinLink) return;
+  var signo = op.tipo === "deposito" ? 1 : -1;
+  var proveedor = op.tipo === "deposito" ? "Depósito fondo inversión" : "Retiro fondo inversión";
+  var detalle = (op.tipo === "deposito" ? "Depósito a" : "Retiro de") + " fondo inversión (auto)";
+  upsertGastoVinculado(op, mes, signo * (Number(op.monto)||0), proveedor, detalle);
+}
+
+/* ---------- MODAL: USD ---------- */
+function setUTipo(val){
+  uTipoSel = val;
+  document.getElementById("uTipoCompra").classList.toggle("sel-claudio", val === "compra");
+  document.getElementById("uTipoVenta").classList.toggle("sel-marcelo", val === "venta");
+  updateUsdArsPreview();
+}
+function setUAdmin(val){
+  uAdminSel = val;
+  document.getElementById("uAdminClaudio").classList.toggle("sel-claudio", val === "claudio");
+  document.getElementById("uAdminMarcelo").classList.toggle("sel-marcelo", val === "marcelo");
+}
+function updateUsdArsPreview(){
+  var usd = parseARSInput(document.getElementById("uMontoUsd").value);
+  var cot = parseARSInput(document.getElementById("uCotizacion").value);
+  document.getElementById("uMontoArs").value = numberToInputStr(usd * cot);
+}
+
+function openUsdModal(id){
+  editingUsdId = id || null;
+  var btnDelete = document.getElementById("btnDeleteUsd");
+  var btnLink = document.getElementById("btnLinkGastoUsd");
+  var rec = getMonthRecord(state.currentMonth);
+  if(id){
+    var op = (rec.usdOps||[]).find(function(o){ return o.id === id; });
+    document.getElementById("uFecha").value = op.fecha;
+    setUTipo(op.tipo);
+    setUAdmin(op.admin);
+    document.getElementById("uMontoUsd").value = numberToInputStr(op.montoUsd);
+    document.getElementById("uCotizacion").value = numberToInputStr(op.cotizacion);
+    document.getElementById("uMontoArs").value = numberToInputStr(op.montoArs);
+    btnDelete.style.display = "block";
+    // Si esta operación es de antes de que existiera el vínculo automático
+    // con el egreso/ingreso en pesos, se ofrece generarlo ahora a pedido
+    // (no se hace solo, para no tocar meses ya validados sin que el
+    // usuario lo pida a propósito).
+    btnLink.style.display = op.legacySinLink ? "block" : "none";
+  } else {
+    document.getElementById("uFecha").value = todayStr();
+    setUTipo("compra");
+    setUAdmin("claudio");
+    document.getElementById("uMontoUsd").value = "";
+    document.getElementById("uCotizacion").value = "";
+    document.getElementById("uMontoArs").value = "";
+    btnDelete.style.display = "none";
+    btnLink.style.display = "none";
+  }
+  openModal("modalUsd");
+}
+
+function generarGastoVinculadoUsdAhora(){
+  if(!editingUsdId) return;
+  var rec = state.months[state.currentMonth];
+  if(!rec) return;
+  var op = (rec.usdOps||[]).find(function(o){ return o.id === editingUsdId; });
+  if(!op) return;
+  op.legacySinLink = false;
+  sincronizarGastoVinculadoUsd(op, state.currentMonth);
+  saveState();
+  closeModal("modalUsd");
+  renderAll();
+  toast("Egreso/ingreso en pesos generado");
+}
+
+function saveUsdOp(){
+  var fecha = document.getElementById("uFecha").value;
+  var montoUsd = parseARSInput(document.getElementById("uMontoUsd").value);
+  var cotizacion = parseARSInput(document.getElementById("uCotizacion").value);
+  var montoArs = parseARSInput(document.getElementById("uMontoArs").value);
+
+  if(!fecha){ toast("Falta la fecha"); return; }
+  if(isNaN(montoUsd) || montoUsd <= 0){ toast("Ingresá un monto USD válido"); return; }
+
+  var rec = materializeMonth(state.currentMonth);
+  if(!rec.usdOps) rec.usdOps = [];
+
+  var op;
+  if(editingUsdId){
+    op = rec.usdOps.find(function(o){ return o.id === editingUsdId; });
+    op.fecha = fecha; op.tipo = uTipoSel; op.admin = uAdminSel;
+    op.montoUsd = montoUsd; op.cotizacion = cotizacion; op.montoArs = montoArs;
+  } else {
+    op = {id: uid(), fecha: fecha, tipo: uTipoSel, admin: uAdminSel, montoUsd: montoUsd, cotizacion: cotizacion, montoArs: montoArs};
+    rec.usdOps.push(op);
+  }
+  sincronizarGastoVinculadoUsd(op, state.currentMonth);
+  saveState();
+  closeModal("modalUsd");
+  renderAll();
+  toast("Operación USD guardada");
+}
+
+function deleteUsdOp(){
+  if(!editingUsdId) return;
+  var rec = state.months[state.currentMonth];
+  if(!rec) return;
+  var op = (rec.usdOps||[]).find(function(o){ return o.id === editingUsdId; });
+  borrarGastoVinculado(op);
+  rec.usdOps = (rec.usdOps||[]).filter(function(o){ return o.id !== editingUsdId; });
+  saveState();
+  closeModal("modalUsd");
+  renderAll();
+  toast("Operación eliminada");
+}
+
+/* ---------- MODAL: FONDO ---------- */
+function setFTipo(val){
+  fTipoSel = val;
+  document.getElementById("fTipoDeposito").classList.toggle("sel-claudio", val === "deposito");
+  document.getElementById("fTipoRetiro").classList.toggle("sel-marcelo", val === "retiro");
+}
+function setFAdmin(val){
+  fAdminSel = val;
+  document.getElementById("fAdminClaudio").classList.toggle("sel-claudio", val === "claudio");
+  document.getElementById("fAdminMarcelo").classList.toggle("sel-marcelo", val === "marcelo");
+}
+
+function openFondoModal(id){
+  editingFondoId = id || null;
+  var btnDelete = document.getElementById("btnDeleteFondo");
+  var btnLink = document.getElementById("btnLinkGastoFondo");
+  var rec = getMonthRecord(state.currentMonth);
+  if(id){
+    var op = (rec.fondoInversionOps||[]).find(function(o){ return o.id === id; });
+    document.getElementById("fFecha").value = op.fecha;
+    setFTipo(op.tipo);
+    setFAdmin(op.admin || "claudio");
+    document.getElementById("fMonto").value = numberToInputStr(op.monto);
+    btnDelete.style.display = "block";
+    btnLink.style.display = op.legacySinLink ? "block" : "none";
+  } else {
+    document.getElementById("fFecha").value = todayStr();
+    setFTipo("deposito");
+    setFAdmin("claudio");
+    document.getElementById("fMonto").value = "";
+    btnDelete.style.display = "none";
+    btnLink.style.display = "none";
+  }
+  openModal("modalFondo");
+}
+
+function generarGastoVinculadoFondoAhora(){
+  if(!editingFondoId) return;
+  var rec = state.months[state.currentMonth];
+  if(!rec) return;
+  var op = (rec.fondoInversionOps||[]).find(function(o){ return o.id === editingFondoId; });
+  if(!op) return;
+  op.legacySinLink = false;
+  sincronizarGastoVinculadoFondo(op, state.currentMonth);
+  saveState();
+  closeModal("modalFondo");
+  renderAll();
+  toast("Egreso/ingreso en pesos generado");
+}
+
+function saveFondoOp(){
+  var fecha = document.getElementById("fFecha").value;
+  var monto = parseARSInput(document.getElementById("fMonto").value);
+  if(!fecha){ toast("Falta la fecha"); return; }
+  if(isNaN(monto) || monto <= 0){ toast("Ingresá un monto válido"); return; }
+
+  var rec = materializeMonth(state.currentMonth);
+  if(!rec.fondoInversionOps) rec.fondoInversionOps = [];
+
+  var op;
+  if(editingFondoId){
+    op = rec.fondoInversionOps.find(function(o){ return o.id === editingFondoId; });
+    op.fecha = fecha; op.tipo = fTipoSel; op.admin = fAdminSel; op.monto = monto;
+  } else {
+    op = {id: uid(), fecha: fecha, tipo: fTipoSel, admin: fAdminSel, monto: monto};
+    rec.fondoInversionOps.push(op);
+  }
+  sincronizarGastoVinculadoFondo(op, state.currentMonth);
+  saveState();
+  closeModal("modalFondo");
+  renderAll();
+  toast("Movimiento guardado");
+}
+
+function deleteFondoOp(){
+  if(!editingFondoId) return;
+  var rec = state.months[state.currentMonth];
+  if(!rec) return;
+  var op = (rec.fondoInversionOps||[]).find(function(o){ return o.id === editingFondoId; });
+  borrarGastoVinculado(op);
+  rec.fondoInversionOps = (rec.fondoInversionOps||[]).filter(function(o){ return o.id !== editingFondoId; });
+  saveState();
+  closeModal("modalFondo");
+  renderAll();
+  toast("Movimiento eliminado");
+}
+
+/* ---------- RENDER: HISTORIAL ---------- */
+function renderHistorial(){
+  var sel = document.getElementById("selHistMonth");
+  var months = Object.keys(state.months).sort();
+  if(months.indexOf(state.currentMonth) === -1) months.push(state.currentMonth);
+  months.sort();
+  sel.innerHTML = months.map(function(m){ return '<option value="'+m+'">'+monthLabel(m)+'</option>'; }).join("");
+  sel.value = state.currentMonth;
+
+  renderPrintArea(state.currentMonth);
+}
+
+function renderPrintArea(key){
+  var rec = state.months[key];
+  var area = document.getElementById("printArea");
+  if(!rec){
+    area.innerHTML = '<div class="empty-state">Sin datos para este mes.</div>';
+    return;
+  }
+  var totals = computeMonthTotals(key);
+  var gastos = state.expenses.filter(function(e){ return e.mes === key; }).sort(function(a,b){ return (a.fecha||"").localeCompare(b.fecha||""); });
+
+  var gastosRows = gastos.map(function(e){
+    var c = catInfo(e.categoria);
+    return '<tr><td>'+formatDateDisplay(e.fecha)+'</td><td>'+escapeHtml(e.proveedor)+'</td><td>'+escapeHtml(e.detalle)+'</td><td>'+c.label+'</td><td>'+(e.admin==="claudio"?"Claudio":"Marcelo")+'</td><td class="num">'+formatARS(e.monto)+'</td></tr>';
+  }).join("");
+
+  var ingClaudioRows = INGRESOS_CLAUDIO_DEF.map(function(def){
+    return '<tr><td>'+def.label+'</td><td class="num">'+formatARS(rec.ingresosClaudio[def.key])+'</td></tr>';
+  }).join("");
+  var ingMarceloRows = INGRESOS_MARCELO_DEF.map(function(def){
+    return '<tr><td>'+def.label+'</td><td class="num">'+formatARS(rec.ingresosMarcelo[def.key])+'</td></tr>';
+  }).join("");
+
+  var html = '';
+  html += '<div class="print-title">CUENTAS PAPI — Cierre '+monthLabel(key)+'</div>';
+  html += '<div class="print-sub">Generado el '+formatDateDisplay(todayStr())+'</div>';
+
+  html += '<div class="print-section-title">Gastos ('+gastos.length+')</div>';
+  if(gastos.length){
+    html += '<table class="hist-table"><thead><tr><th>Fecha</th><th>Proveedor</th><th>Detalle</th><th>Categoría</th><th>Admin</th><th class="num">Monto</th></tr></thead><tbody>'+gastosRows+'</tbody></table>';
+  } else {
+    html += '<div style="color:var(--text-dim); font-size:13px;">Sin gastos registrados.</div>';
+  }
+
+  html += '<div class="print-section-title">Ingresos Claudio</div>';
+  html += '<table class="hist-table"><tbody>'+ingClaudioRows+'<tr><td><b>Saldo anterior</b></td><td class="num"><b>'+formatARS(rec.saldoAnteriorClaudio)+'</b></td></tr><tr><td><b>Total ingresos</b></td><td class="num"><b>'+formatARS(totals.ingresosClaudioTotal)+'</b></td></tr></tbody></table>';
+
+  html += '<div class="print-section-title">Ingresos Marcelo</div>';
+  html += '<table class="hist-table"><tbody>'+ingMarceloRows+'<tr><td><b>Saldo anterior</b></td><td class="num"><b>'+formatARS(rec.saldoAnteriorMarcelo)+'</b></td></tr><tr><td><b>Total ingresos</b></td><td class="num"><b>'+formatARS(totals.ingresosMarceloTotal)+'</b></td></tr></tbody></table>';
+
+  html += '<div class="print-section-title">Resumen</div>';
+  html += '<table class="hist-table"><tbody>';
+  html += '<tr><td>Gastos Claudio</td><td class="num">'+formatARS(totals.gastosClaudioTotal)+'</td></tr>';
+  html += '<tr><td>Saldo Claudio</td><td class="num">'+formatARS(totals.saldoClaudio)+'</td></tr>';
+  html += '<tr><td>Gastos Marcelo</td><td class="num">'+formatARS(totals.gastosMarceloTotal)+'</td></tr>';
+  html += '<tr><td>Saldo Marcelo</td><td class="num">'+formatARS(totals.saldoMarcelo)+'</td></tr>';
+  html += '<tr><td><b>SALDO AL DÍA</b></td><td class="num"><b>'+formatARS(totals.saldoAlDia)+'</b></td></tr>';
+  html += '</tbody></table>';
+
+  html += '<div class="print-section-title">USD y Fondos</div>';
+  html += '<table class="hist-table"><tbody>';
+  html += '<tr><td>USD Claudio</td><td class="num">'+formatUSD(totals.usdClaudioFinal)+'</td></tr>';
+  html += '<tr><td>USD Marcelo</td><td class="num">'+formatUSD(totals.usdMarceloFinal)+'</td></tr>';
+  html += '<tr><td>Fondos YPF</td><td class="num">'+formatARS(rec.fondosYPF)+'</td></tr>';
+  html += '<tr><td>Fondo inversión</td><td class="num">'+formatARS(totals.fondoInversionFinal)+'</td></tr>';
+  html += '</tbody></table>';
+
+  area.innerHTML = html;
+}
+
+/* ---------- MODALS GENERIC ---------- */
+function openModal(id){ document.getElementById(id).classList.add("open"); }
+function closeModal(id){ document.getElementById(id).classList.remove("open"); }
+
+/* ---------- MONTH PICKER ---------- */
+function openMonthPicker(){
+  document.getElementById("inpNewMonth").value = state.currentMonth;
+  var list = document.getElementById("monthPickerList");
+  var months = Object.keys(state.months).sort().reverse();
+  list.innerHTML = months.map(function(m){
+    return '<div class="month-picker-item" data-month="'+m+'">'+monthLabel(m)+'<span class="chev">›</span></div>';
+  }).join("");
+  list.querySelectorAll(".month-picker-item").forEach(function(item){
+    item.addEventListener("click", function(){
+      state.currentMonth = item.getAttribute("data-month");
+      saveState();
+      closeModal("modalMonthPicker");
+      renderAll();
+    });
+  });
+  openModal("modalMonthPicker");
+}
+
+/* ---------- BACKUP ---------- */
+function exportBackup(){
+  var blob = new Blob([JSON.stringify(state, null, 2)], {type: "application/json"});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = "cuentas_papi_backup_" + todayStr() + ".json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast("Backup exportado");
+}
+
+function importBackup(file){
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var data = JSON.parse(e.target.result);
+      if(!data.months || !data.expenses){ toast("Archivo inválido"); return; }
+      if(confirm("Esto reemplazará todos los datos actuales. ¿Continuar?")){
+        state = data;
+        if(!state.proveedores) state.proveedores = DEFAULT_PROVEEDORES.slice();
+        if(!state.currentMonth) state.currentMonth = todayStr().slice(0,7);
+        saveState();
+        closeModal("modalMenu");
+        renderAll();
+        toast("Backup importado");
+      }
+    }catch(err){
+      toast("Error al leer el archivo");
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ---------- RENDER ALL ---------- */
+function renderAll(){
+  renderHeader();
+  if(currentTab === "gastos") renderGastos();
+  else if(currentTab === "ingresos") renderIngresos();
+  else if(currentTab === "resumen") renderResumen();
+  else if(currentTab === "historial") renderHistorial();
+}
+
+/* ---------- LOGIN ---------- */
+function initLogin(){
+  document.querySelectorAll("#loginStep1 button[data-persona]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      selectedPersona = btn.getAttribute("data-persona");
+      document.getElementById("loginPersonaLabel").textContent = "Hola " + ROLE_LABELS[selectedPersona] + ", ingresá tu PIN";
+      document.getElementById("loginPin").value = "";
+      document.getElementById("loginError").style.display = "none";
+      document.getElementById("loginStep1").style.display = "none";
+      document.getElementById("loginStep2").style.display = "block";
+      document.getElementById("loginPin").focus();
+    });
+  });
+  document.getElementById("btnLoginBack").addEventListener("click", function(){
+    document.getElementById("loginStep2").style.display = "none";
+    document.getElementById("loginStep1").style.display = "block";
+  });
+  document.getElementById("btnLoginSubmit").addEventListener("click", doLogin);
+  document.getElementById("loginPin").addEventListener("keydown", function(ev){
+    if(ev.key === "Enter") doLogin();
+  });
+}
+
+function doLogin(){
+  var pin = document.getElementById("loginPin").value.trim();
+  if(!selectedPersona || !pin) return;
+  var email = ROLE_EMAILS[selectedPersona];
+  document.getElementById("loginStep2").style.display = "none";
+  document.getElementById("loginLoading").style.display = "block";
+  auth.signInWithEmailAndPassword(email, pin).catch(function(){
+    document.getElementById("loginLoading").style.display = "none";
+    document.getElementById("loginStep2").style.display = "block";
+    var errEl = document.getElementById("loginError");
+    errEl.textContent = "PIN incorrecto o sin conexión.";
+    errEl.style.display = "block";
+  });
+}
+
+function applyRoleUI(){
+  document.body.classList.toggle("readonly", READONLY);
+  ["inpSaldoAntClaudio","inpSaldoAntMarcelo","inpFondosYPF","gFecha","gProveedor","gDetalle","gMonto",
+   "uFecha","uMontoUsd","uCotizacion","fFecha","fMonto"].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.readOnly = READONLY;
+  });
+  var gCat = document.getElementById("gCategoria");
+  if(gCat) gCat.disabled = READONLY;
+}
+
+if(FIREBASE_ENABLED){
+  auth.onAuthStateChanged(function(user){
+    if(user){
+      currentRole = Object.keys(ROLE_EMAILS).filter(function(k){ return ROLE_EMAILS[k] === user.email; })[0] || null;
+      READONLY = EDITOR_ROLES.indexOf(currentRole) === -1;
+      document.getElementById("loginScreen").classList.add("hide");
+      startFirestoreSync();
+    } else {
+      currentRole = null;
+      READONLY = false;
+      appStarted = false;
+      if(firestoreUnsub){ firestoreUnsub(); firestoreUnsub = null; }
+      document.getElementById("loginScreen").classList.remove("hide");
+      document.getElementById("loginLoading").style.display = "none";
+      document.getElementById("loginStep1").style.display = "block";
+      document.getElementById("loginStep2").style.display = "none";
+      document.getElementById("loginPin").value = "";
+    }
+  });
+}
+
+/* ---------- ARRANQUE UNA VEZ QUE LLEGAN LOS DATOS ---------- */
+function startApp(){
+  // Limpieza única de meses fantasma que hayan quedado guardados por el
+  // bug de versiones anteriores (navegar creaba y guardaba meses vacíos).
+  var huboLimpieza = limpiarMesesFantasmaUnaVez();
+  var huboMigracionLink = migrarLegacySinLinkUnaVez();
+
+  // Si el mes actual guardado quedó más adelante de lo permitido (por ej.
+  // por haber navegado antes de este arreglo), lo volvemos a acercar al
+  // último mes real cargado.
+  var maxMonth = getMaxNavigableMonth();
+  var currentClamped = state.currentMonth > maxMonth;
+  if(currentClamped){
+    state.currentMonth = maxMonth;
+  }
+  if(!READONLY && (huboLimpieza || huboMigracionLink || currentClamped)){
+    saveState();
+  }
+
+  refreshProveedoresDatalist();
+  applyRoleUI();
+  switchTab("gastos");
+}
+
+/* ---------- INIT / EVENTS (esto corre apenas carga la página, antes de
+   loguearse — la pantalla de login tapa todo lo demás así que es seguro
+   enganchar los listeners ya, no hace falta esperar a tener datos) ---------- */
+function bindStaticEventListeners(){
+  populateCategoriaSelect();
+
+  // Formateo en vivo (punto de miles / coma decimal) para los campos de
+  // monto fijos. Los que se generan dinámicamente (ingresos) se enganchan
+  // en renderIngresos() cada vez que se dibujan.
+  ["gMonto","inpSaldoAntClaudio","inpSaldoAntMarcelo","inpFondosYPF","uMontoUsd","uCotizacion","fMonto"].forEach(function(id){
+    attachLiveThousands(document.getElementById(id));
+  });
+
+  document.querySelectorAll("#sideNavPanel button").forEach(function(b){
+    b.addEventListener("click", function(){ switchTab(b.getAttribute("data-tab")); });
+  });
+  document.getElementById("btnSideNavToggle").addEventListener("click", toggleSideNav);
+  document.getElementById("sideNavBackdrop").addEventListener("click", closeSideNav);
+
+  document.getElementById("btnPrevMonth").addEventListener("click", function(){
+    state.currentMonth = shiftMonth(state.currentMonth, -1);
+    saveState(); renderAll();
+  });
+  document.getElementById("btnNextMonth").addEventListener("click", function(){
+    var next = shiftMonth(state.currentMonth, 1);
+    if(next > getMaxNavigableMonth()){
+      toast("Cargá datos en " + monthLabel(state.currentMonth) + " antes de avanzar más");
+      return;
+    }
+    state.currentMonth = next;
+    saveState(); renderAll();
+  });
+  document.getElementById("lblMonth").addEventListener("click", openMonthPicker);
+
+  document.getElementById("btnMenu").addEventListener("click", function(){
+    document.getElementById("menuSessionLabel").textContent = FIREBASE_ENABLED
+      ? ("Sesión: " + (ROLE_LABELS[currentRole] || "") + (READONLY ? " (solo lectura)" : ""))
+      : "Modo local (todavía sin sincronizar entre dispositivos)";
+    document.getElementById("btnLogout").style.display = FIREBASE_ENABLED ? "block" : "none";
+    openModal("modalMenu");
+  });
+
+  document.querySelectorAll("[data-close]").forEach(function(btn){
+    btn.addEventListener("click", function(){ closeModal(btn.getAttribute("data-close")); });
+  });
+  document.querySelectorAll(".modal-overlay").forEach(function(ov){
+    ov.addEventListener("click", function(ev){ if(ev.target === ov) closeModal(ov.id); });
+  });
+
+  // Gasto modal
+  document.getElementById("btnAddGasto").addEventListener("click", function(){ openGastoModal(null); });
+  document.getElementById("gAdminClaudio").addEventListener("click", function(){ setGAdmin("claudio"); });
+  document.getElementById("gAdminMarcelo").addEventListener("click", function(){ setGAdmin("marcelo"); });
+  document.getElementById("btnSaveGasto").addEventListener("click", saveGasto);
+  document.getElementById("btnDeleteGasto").addEventListener("click", deleteGastoFromModal);
+
+  // Ingresos
+  document.getElementById("btnGuardarIngresos").addEventListener("click", guardarIngresos);
+
+  // Resumen
+  document.getElementById("inpSaldoAntClaudio").addEventListener("change", guardarSaldosAnteriores);
+  document.getElementById("inpSaldoAntMarcelo").addEventListener("change", guardarSaldosAnteriores);
+  document.getElementById("inpFondosYPF").addEventListener("change", guardarFondosYPF);
+  document.getElementById("btnResyncMonth").addEventListener("click", function(){
+    if(READONLY) return;
+    if(resincronizarSaldoAnterior(state.currentMonth)){
+      saveState();
+      renderAll();
+      toast("Saldo anterior actualizado");
+    }
+  });
+
+  document.getElementById("btnAddUsdOp").addEventListener("click", function(){ openUsdModal(null); });
+  document.getElementById("uTipoCompra").addEventListener("click", function(){ setUTipo("compra"); });
+  document.getElementById("uTipoVenta").addEventListener("click", function(){ setUTipo("venta"); });
+  document.getElementById("uAdminClaudio").addEventListener("click", function(){ setUAdmin("claudio"); });
+  document.getElementById("uAdminMarcelo").addEventListener("click", function(){ setUAdmin("marcelo"); });
+  document.getElementById("uMontoUsd").addEventListener("input", updateUsdArsPreview);
+  document.getElementById("uCotizacion").addEventListener("input", updateUsdArsPreview);
+  document.getElementById("btnSaveUsd").addEventListener("click", saveUsdOp);
+  document.getElementById("btnDeleteUsd").addEventListener("click", deleteUsdOp);
+  document.getElementById("btnLinkGastoUsd").addEventListener("click", generarGastoVinculadoUsdAhora);
+
+  document.getElementById("btnAddFondoOp").addEventListener("click", function(){ openFondoModal(null); });
+  document.getElementById("fTipoDeposito").addEventListener("click", function(){ setFTipo("deposito"); });
+  document.getElementById("fTipoRetiro").addEventListener("click", function(){ setFTipo("retiro"); });
+  document.getElementById("fAdminClaudio").addEventListener("click", function(){ setFAdmin("claudio"); });
+  document.getElementById("fAdminMarcelo").addEventListener("click", function(){ setFAdmin("marcelo"); });
+  document.getElementById("btnSaveFondo").addEventListener("click", saveFondoOp);
+  document.getElementById("btnDeleteFondo").addEventListener("click", deleteFondoOp);
+  document.getElementById("btnLinkGastoFondo").addEventListener("click", generarGastoVinculadoFondoAhora);
+
+  // Historial
+  document.getElementById("selHistMonth").addEventListener("change", function(){
+    renderPrintArea(this.value);
+  });
+  document.getElementById("btnPrint").addEventListener("click", function(){
+    renderPrintArea(document.getElementById("selHistMonth").value);
+    window.print();
+  });
+
+  // Month picker
+  document.getElementById("btnGoToMonth").addEventListener("click", function(){
+    var v = document.getElementById("inpNewMonth").value;
+    if(v){
+      if(v > getMaxNavigableMonth()){
+        toast("Ese mes todavía no está habilitado. Cargá los meses anteriores primero.");
+        return;
+      }
+      state.currentMonth = v;
+      saveState();
+      closeModal("modalMonthPicker");
+      renderAll();
+    }
+  });
+
+  // Menu / backup
+  document.getElementById("btnExportBackup").addEventListener("click", exportBackup);
+  document.getElementById("btnImportBackup").addEventListener("click", function(){
+    document.getElementById("fileImport").click();
+  });
+  document.getElementById("fileImport").addEventListener("change", function(e){
+    if(e.target.files && e.target.files[0]) importBackup(e.target.files[0]);
+    e.target.value = "";
+  });
+  document.getElementById("btnResyncAll").addEventListener("click", function(){
+    if(READONLY){ toast("Modo solo lectura"); return; }
+    var cambios = resincronizarTodosLosMeses();
+    if(cambios > 0){
+      saveState();
+      closeModal("modalMenu");
+      renderAll();
+      toast("Se actualizaron " + cambios + " mes(es)");
+    } else {
+      toast("Todo ya estaba sincronizado");
+    }
+  });
+  document.getElementById("btnResetAll").addEventListener("click", function(){
+    if(READONLY){ toast("Modo solo lectura"); return; }
+    var msg = FIREBASE_ENABLED
+      ? "Esto borrará TODOS los datos guardados PARA TODOS (Claudio, Marcelo y Andrés), no solo en este aparato. ¿Estás seguro?"
+      : "Esto borrará TODOS los datos guardados en este navegador. ¿Estás seguro?";
+    if(confirm(msg)){
+      state = defaultState();
+      saveState();
+      closeModal("modalMenu");
+      renderAll();
+      toast("Datos borrados");
+    }
+  });
+  document.getElementById("btnLogout").addEventListener("click", function(){
+    if(FIREBASE_ENABLED) auth.signOut();
+    closeModal("modalMenu");
+  });
+
+  // Modo local (todavía sin Firebase configurado): nos salteamos por
+  // completo la pantalla de login y arrancamos directo con los datos
+  // guardados en este navegador, como funcionaba antes.
+  if(FIREBASE_ENABLED){
+    initLogin();
+  } else {
+    document.getElementById("loginScreen").classList.add("hide");
+    loadStateLocal();
+    startApp();
+  }
+}
+
+document.addEventListener("DOMContentLoaded", bindStaticEventListeners);
+})();
+</script>
+</body>
+</html>
