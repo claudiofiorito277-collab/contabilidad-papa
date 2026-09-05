@@ -188,12 +188,20 @@
   .btn-row .btn{flex:1;}
 
   /* INGRESOS */
-  .ingreso-row{display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid var(--border);}
-  .ingreso-row:last-child{border-bottom:none;}
+  .ingreso-row-wrap{padding:10px 2px; border-bottom:1px solid var(--border);}
+  .ingreso-row-wrap:last-child{border-bottom:none;}
+  .ingreso-row{display:flex; align-items:center; gap:10px;}
   .ingreso-lbl{flex:1;}
   .ingreso-lbl .l1{font-weight:600; font-size:15px;}
   .ingreso-lbl .l2{font-size:12px; color:var(--text-dim);}
   .ingreso-row input{width:130px; text-align:right; background:var(--card-strong); border:1px solid var(--border); color:var(--green); font-weight:700; padding:10px 8px; border-radius:10px; height:44px;}
+  .ingreso-obs-input{
+    display:block; width:100%; margin-top:8px; background:transparent; border:none;
+    border-bottom:1px dashed var(--border); color:var(--text-dim); font-size:12px;
+    font-style:italic; padding:4px 2px;
+  }
+  .ingreso-obs-input:focus{outline:none; border-bottom-color:var(--accent); color:var(--text);}
+  .ingreso-obs-input::placeholder{color:var(--text-dim); opacity:.55; font-style:italic;}
 
   /* RESUMEN */
   .saldo-grande{
@@ -1079,6 +1087,8 @@ function emptyMonthRecord(){
     saldoAnteriorMarcelo: 0,
     ingresosClaudio: ingresosClaudioEnCero(),
     ingresosMarcelo: ingresosMarceloEnCero(),
+    ingresosClaudioObs: {},
+    ingresosMarceloObs: {},
     usdClaudioAnterior: 0,
     usdMarceloAnterior: 0,
     usdOps: [],
@@ -1437,13 +1447,19 @@ function deleteGastoFromModal(){
 /* ---------- RENDER: INGRESOS ---------- */
 function renderIngresos(){
   var rec = getMonthRecord(state.currentMonth);
+  if(!rec.ingresosClaudioObs) rec.ingresosClaudioObs = {};
+  if(!rec.ingresosMarceloObs) rec.ingresosMarceloObs = {};
 
   var claudioHtml = "";
   INGRESOS_CLAUDIO_DEF.forEach(function(def){
     var val = rec.ingresosClaudio[def.key];
-    claudioHtml += '<div class="ingreso-row">' +
-      '<div class="ingreso-lbl"><div class="l1">'+def.label+'</div>'+(def.sub ? '<div class="l2">'+def.sub+'</div>' : '')+'</div>' +
-      '<input type="text" inputmode="decimal" data-admin="claudio" data-key="'+def.key+'" value="'+numberToInputStr(val)+'">' +
+    var obs = rec.ingresosClaudioObs[def.key] || "";
+    claudioHtml += '<div class="ingreso-row-wrap">' +
+      '<div class="ingreso-row">' +
+        '<div class="ingreso-lbl"><div class="l1">'+def.label+'</div>'+(def.sub ? '<div class="l2">'+def.sub+'</div>' : '')+'</div>' +
+        '<input type="text" inputmode="decimal" class="ingreso-monto-input" data-admin="claudio" data-key="'+def.key+'" value="'+numberToInputStr(val)+'">' +
+      '</div>' +
+      '<input type="text" class="ingreso-obs-input" data-obs-admin="claudio" data-obs-key="'+def.key+'" placeholder="Observaciones (opcional)" value="'+escapeHtml(obs)+'">' +
     '</div>';
   });
   document.getElementById("ingresosClaudioList").innerHTML = claudioHtml;
@@ -1451,26 +1467,41 @@ function renderIngresos(){
   var marceloHtml = "";
   INGRESOS_MARCELO_DEF.forEach(function(def){
     var val = rec.ingresosMarcelo[def.key];
-    marceloHtml += '<div class="ingreso-row">' +
-      '<div class="ingreso-lbl"><div class="l1">'+def.label+'</div>'+(def.sub ? '<div class="l2">'+def.sub+'</div>' : '')+'</div>' +
-      '<input type="text" inputmode="decimal" data-admin="marcelo" data-key="'+def.key+'" value="'+numberToInputStr(val)+'">' +
+    var obs = rec.ingresosMarceloObs[def.key] || "";
+    marceloHtml += '<div class="ingreso-row-wrap">' +
+      '<div class="ingreso-row">' +
+        '<div class="ingreso-lbl"><div class="l1">'+def.label+'</div>'+(def.sub ? '<div class="l2">'+def.sub+'</div>' : '')+'</div>' +
+        '<input type="text" inputmode="decimal" class="ingreso-monto-input" data-admin="marcelo" data-key="'+def.key+'" value="'+numberToInputStr(val)+'">' +
+      '</div>' +
+      '<input type="text" class="ingreso-obs-input" data-obs-admin="marcelo" data-obs-key="'+def.key+'" placeholder="Observaciones (opcional)" value="'+escapeHtml(obs)+'">' +
     '</div>';
   });
   document.getElementById("ingresosMarceloList").innerHTML = marceloHtml;
 
-  document.querySelectorAll("#ingresosClaudioList input, #ingresosMarceloList input").forEach(function(inp){
+  document.querySelectorAll("#ingresosClaudioList .ingreso-monto-input, #ingresosMarceloList .ingreso-monto-input").forEach(function(inp){
     attachLiveThousands(inp);
+    inp.readOnly = READONLY;
+  });
+  document.querySelectorAll("#ingresosClaudioList .ingreso-obs-input, #ingresosMarceloList .ingreso-obs-input").forEach(function(inp){
     inp.readOnly = READONLY;
   });
 }
 
 function guardarIngresos(){
   var rec = materializeMonth(state.currentMonth);
-  document.querySelectorAll("#ingresosClaudioList input").forEach(function(inp){
+  if(!rec.ingresosClaudioObs) rec.ingresosClaudioObs = {};
+  if(!rec.ingresosMarceloObs) rec.ingresosMarceloObs = {};
+  document.querySelectorAll("#ingresosClaudioList .ingreso-monto-input").forEach(function(inp){
     rec.ingresosClaudio[inp.getAttribute("data-key")] = parseARSInput(inp.value);
   });
-  document.querySelectorAll("#ingresosMarceloList input").forEach(function(inp){
+  document.querySelectorAll("#ingresosMarceloList .ingreso-monto-input").forEach(function(inp){
     rec.ingresosMarcelo[inp.getAttribute("data-key")] = parseARSInput(inp.value);
+  });
+  document.querySelectorAll("#ingresosClaudioList .ingreso-obs-input").forEach(function(inp){
+    rec.ingresosClaudioObs[inp.getAttribute("data-obs-key")] = inp.value.trim();
+  });
+  document.querySelectorAll("#ingresosMarceloList .ingreso-obs-input").forEach(function(inp){
+    rec.ingresosMarceloObs[inp.getAttribute("data-obs-key")] = inp.value.trim();
   });
   saveState();
   renderAll();
@@ -1836,10 +1867,14 @@ function renderPrintArea(key){
   }).join("");
 
   var ingClaudioRows = INGRESOS_CLAUDIO_DEF.map(function(def){
-    return '<tr><td>'+def.label+'</td><td class="num">'+formatARS(rec.ingresosClaudio[def.key])+'</td></tr>';
+    var obs = (rec.ingresosClaudioObs && rec.ingresosClaudioObs[def.key]) || "";
+    var obsHtml = obs ? ' <span style="color:var(--text-dim); font-size:11px;">— '+escapeHtml(obs)+'</span>' : '';
+    return '<tr><td>'+def.label+obsHtml+'</td><td class="num">'+formatARS(rec.ingresosClaudio[def.key])+'</td></tr>';
   }).join("");
   var ingMarceloRows = INGRESOS_MARCELO_DEF.map(function(def){
-    return '<tr><td>'+def.label+'</td><td class="num">'+formatARS(rec.ingresosMarcelo[def.key])+'</td></tr>';
+    var obs = (rec.ingresosMarceloObs && rec.ingresosMarceloObs[def.key]) || "";
+    var obsHtml = obs ? ' <span style="color:var(--text-dim); font-size:11px;">— '+escapeHtml(obs)+'</span>' : '';
+    return '<tr><td>'+def.label+obsHtml+'</td><td class="num">'+formatARS(rec.ingresosMarcelo[def.key])+'</td></tr>';
   }).join("");
 
   var html = '';
