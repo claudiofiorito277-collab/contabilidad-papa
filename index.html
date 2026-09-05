@@ -802,11 +802,94 @@ function numberToInputStr(n){
   return (neg ? "-" : "") + result;
 }
 
-// Engancha el formateo a un input de monto: mientras se edita se deja
-// escribir libremente (nada de reformatear tecla a tecla, eso es lo que
-// rompía los montos según el teclado); recién al salir (blur) se
-// interpreta todo junto con la regla de arriba y se prolija.
+// Calcula cómo debería quedar el valor de un campo de monto MIENTRAS se
+// escribe (con puntos de miles ya puestos), y a dónde tiene que quedar
+// el cursor después de reformatear. Los puntos son puramente decorativos
+// (los pone esta función); lo único que cuenta como separador decimal
+// real es la coma. Por eso el "." nunca se interpreta acá como parte del
+// número: se lo intercepta antes (ver abajo) y se convierte en coma.
+function computeLiveFormat(oldValue, cursorPos){
+  var neg = oldValue.charAt(0) === "-";
+  var body = neg ? oldValue.slice(1) : oldValue;
+  var commaIdx = body.indexOf(",");
+  var hasComma = commaIdx !== -1;
+  var intRaw, decRaw;
+  if(hasComma){
+    intRaw = body.slice(0, commaIdx).replace(/\D/g, "");
+    decRaw = body.slice(commaIdx + 1).replace(/\D/g, "").slice(0, 2);
+  } else {
+    intRaw = body.replace(/\D/g, "");
+    decRaw = "";
+  }
+  intRaw = intRaw.replace(/^0+(?=\d)/, "");
+  var intFormatted = intRaw.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  var newValue = (neg ? "-" : "") + intFormatted + (hasComma ? ("," + decRaw) : "");
+
+  // El cursor se reubica contando caracteres "reales" (todo menos los
+  // puntos de miles, que son decorativos) antes de la posición vieja, y
+  // ubicándolo después de esa misma cantidad de caracteres reales en el
+  // valor ya reformateado.
+  var logicalCount = 0;
+  for(var i = 0; i < cursorPos && i < oldValue.length; i++){
+    if(oldValue.charAt(i) !== ".") logicalCount++;
+  }
+  var pos = 0, seen = 0;
+  while(pos < newValue.length && seen < logicalCount){
+    if(newValue.charAt(pos) !== ".") seen++;
+    pos++;
+  }
+  return {value: newValue, cursor: pos};
+}
+
+function applyLiveFormat(inputEl){
+  var cursorPos = inputEl.selectionStart;
+  var res = computeLiveFormat(inputEl.value, cursorPos);
+  if(res.value !== inputEl.value){
+    inputEl.value = res.value;
+    inputEl.setSelectionRange(res.cursor, res.cursor);
+  }
+}
+
+// Engancha el formateo de puntos de miles a un input de monto. Ahora se
+// reformatea EN VIVO, a medida que se escribe (antes solo se prolijaba
+// al salir del campo). Para que esto no rompa según el teclado (el bug
+// original que llevó a evitar esto): el punto de miles que se ve en
+// pantalla es siempre decorativo y se recalcula solo; si el usuario
+// aprieta la tecla "." (algunos teclados numéricos la mandan en vez de
+// la coma), se la convierte automáticamente en "," — así nunca hay
+// ambigüedad entre "punto decimal" y "punto de miles" mientras se tipea.
 function attachLiveThousands(inputEl){
+  inputEl.addEventListener("beforeinput", function(ev){
+    if(ev.inputType === "insertText" && ev.data === "."){
+      ev.preventDefault();
+      if(inputEl.value.indexOf(",") === -1){
+        var start = inputEl.selectionStart, end = inputEl.selectionEnd;
+        var v = inputEl.value;
+        inputEl.value = v.slice(0, start) + "," + v.slice(end);
+        inputEl.setSelectionRange(start + 1, start + 1);
+        applyLiveFormat(inputEl);
+      }
+    }
+  });
+  inputEl.addEventListener("keydown", function(ev){
+    // Si se borra justo al lado de un punto de miles, se salta el punto
+    // (decorativo) para que Backspace/Delete siempre borren un dígito de
+    // verdad y no se sienta "trabado".
+    if(ev.key === "Backspace" && inputEl.selectionStart === inputEl.selectionEnd){
+      var p = inputEl.selectionStart;
+      if(p > 0 && inputEl.value.charAt(p - 1) === "."){
+        inputEl.setSelectionRange(p - 1, p - 1);
+      }
+    } else if(ev.key === "Delete" && inputEl.selectionStart === inputEl.selectionEnd){
+      var p2 = inputEl.selectionStart;
+      if(inputEl.value.charAt(p2) === "."){
+        inputEl.setSelectionRange(p2 + 1, p2 + 1);
+      }
+    }
+  });
+  inputEl.addEventListener("input", function(){
+    applyLiveFormat(inputEl);
+  });
   inputEl.addEventListener("blur", function(){
     var n = parseARSInput(inputEl.value);
     inputEl.value = numberToInputStr(n);
