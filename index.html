@@ -175,6 +175,7 @@
   }
   .radio-opt.sel-claudio{border-color:var(--accent); color:var(--accent); background:rgba(79,195,247,.12);}
   .radio-opt.sel-marcelo{border-color:var(--orange); color:var(--orange); background:rgba(255,167,38,.12);}
+  .radio-opt.sel-andres{border-color:var(--green); color:var(--green); background:rgba(76,175,80,.12);}
 
   .btn{
     display:block; width:100%; text-align:center; padding:14px; border-radius:14px;
@@ -288,6 +289,9 @@
   body.readonly #btnGuardarIngresos,
   body.readonly #btnLinkGastoUsd,
   body.readonly #btnLinkGastoFondo,
+  body.readonly #btnAddPrestamo,
+  body.readonly #btnMarcarDevueltoPrestamo,
+  body.readonly #btnAnularDevolucionPrestamo,
   body.readonly .btn-row .btn-primary,
   body.readonly .btn-row .btn-danger{
     display:none !important;
@@ -409,6 +413,12 @@
       <div class="resumen-line"><span class="lk">Fondo inversión (saldo)</span><span id="rFondoInversion" style="color:var(--accent)"></span></div>
       <div class="small-add" id="btnAddFondoOp">+ Depósito / retiro fondo inversión</div>
       <div id="fondoOpsList" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
+      <h3>Préstamos</h3>
+      <div class="small-add" id="btnAddPrestamo">+ Registrar préstamo</div>
+      <div id="prestamosList" style="margin-top:8px;"></div>
     </div>
   </section>
 
@@ -582,6 +592,55 @@
   </div>
 </div>
 
+<!-- MODAL: PRESTAMO -->
+<div class="modal-overlay" id="modalPrestamo">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span id="prestamoModalTitle">Nuevo préstamo</span><button class="close-x" data-close="modalPrestamo">✕</button></div>
+    <div id="prestamoEstadoInfo" style="display:none; font-size:13px; font-weight:700; margin-bottom:14px; text-align:center;"></div>
+    <div class="field">
+      <label>Fecha</label>
+      <input type="date" id="pFecha">
+    </div>
+    <div class="field">
+      <label>Moneda</label>
+      <div class="radio-group">
+        <div class="radio-opt" id="pMonedaArs" data-val="ARS">Pesos</div>
+        <div class="radio-opt" id="pMonedaUsd" data-val="USD">Dólares</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Monto</label>
+      <input type="text" inputmode="decimal" id="pMonto" placeholder="0">
+    </div>
+    <div class="field">
+      <label>Presta (de los fondos de papá)</label>
+      <div class="radio-group">
+        <div class="radio-opt" id="pAdminClaudio" data-val="claudio">Claudio</div>
+        <div class="radio-opt" id="pAdminMarcelo" data-val="marcelo">Marcelo</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>A quién se le presta</label>
+      <div class="radio-group">
+        <div class="radio-opt" id="pPersonaAndres" data-val="andres">Andrés</div>
+        <div class="radio-opt" id="pPersonaMarcelo" data-val="marcelo">Marcelo</div>
+        <div class="radio-opt" id="pPersonaClaudio" data-val="claudio">Claudio</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Detalle (opcional)</label>
+      <input type="text" id="pDetalle" placeholder="Ej: para arreglar el auto">
+    </div>
+    <button class="btn btn-secondary no-print" id="btnMarcarDevueltoPrestamo" style="margin-bottom:10px; display:none;">✅ Marcar como devuelto</button>
+    <button class="btn btn-secondary no-print" id="btnAnularDevolucionPrestamo" style="margin-bottom:10px; display:none;">↩️ Anular devolución</button>
+    <div class="btn-row">
+      <button class="btn btn-danger no-print" id="btnDeletePrestamo" style="display:none;">Eliminar</button>
+      <button class="btn btn-primary" id="btnSavePrestamo">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- LOGIN -->
@@ -673,6 +732,7 @@ var CATEGORIAS = [
   {id:"mant_turrado", label:"Mant. Turrado Juárez", sub:"Casa, reparaciones", icon:"🏚️"},
   {id:"consorcio", label:"Consorcio / Servicios", sub:"Cooperativa, Municipalidad", icon:"🧾"},
   {id:"usd_fondos", label:"USD / Fondos", sub:"Compra/venta USD, fondo inversión", icon:"💱"},
+  {id:"prestamos", label:"Préstamos", sub:"Plata prestada a Andrés, Marcelo o Claudio", icon:"🤝"},
   {id:"otros", label:"Otros", sub:"Regalos, comidas, propinas", icon:"📦"}
 ];
 
@@ -719,11 +779,15 @@ var currentTab = "gastos";
 var editingGastoId = null;
 var editingUsdId = null;
 var editingFondoId = null;
+var editingPrestamoId = null;
 var gAdminSel = "claudio";
 var uTipoSel = "compra";
 var uAdminSel = "claudio";
 var fTipoSel = "deposito";
 var fAdminSel = "claudio";
+var prestamoMonedaSel = "ARS";
+var prestamoAdminSel = "claudio";
+var prestamoPersonaSel = "andres";
 
 /* ---------- UTILS ---------- */
 function uid(){ return "id_" + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
@@ -957,7 +1021,8 @@ function defaultState(){
     currentMonth: curMonth,
     expenses: [],
     months: {},
-    proveedores: DEFAULT_PROVEEDORES.slice()
+    proveedores: DEFAULT_PROVEEDORES.slice(),
+    prestamos: []
   };
   s.months[curMonth] = emptyMonthRecord();
   return s;
@@ -970,6 +1035,7 @@ function normalizeState(s){
   if(!s.expenses) s.expenses = [];
   if(!s.proveedores) s.proveedores = DEFAULT_PROVEEDORES.slice();
   if(!s.currentMonth) s.currentMonth = todayStr().slice(0,7);
+  if(!s.prestamos) s.prestamos = [];
   return s;
 }
 
@@ -1560,7 +1626,7 @@ function renderResumen(){
     var adminBadge = op.admin === "claudio" ? '<span class="badge badge-claudio">C</span>' : '<span class="badge badge-marcelo">M</span>';
     usdOpsHtml += '<div class="gasto-row" data-usdid="'+op.id+'" style="padding:8px 4px;">' +
       '<div class="gasto-info">' +
-        '<div class="gasto-prov" style="font-size:14px;">'+adminBadge+(op.tipo === "compra" ? "Compra" : "Venta")+' USD</div>' +
+        '<div class="gasto-prov" style="font-size:14px;">'+adminBadge+(op.tipo === "compra" ? "Compra" : "Venta")+' USD'+(op.esPrestamo ? ' <span style="color:var(--text-dim); font-weight:400;">(préstamo)</span>' : '')+'</div>' +
         '<div class="gasto-meta">'+formatDateDisplay(op.fecha)+' · cotiz. '+formatARS(op.cotizacion)+'</div>' +
       '</div>' +
       '<div class="gasto-right"><div class="gasto-monto" style="color:'+color+'">'+sign+formatUSD(op.montoUsd)+'</div></div>' +
@@ -1588,6 +1654,8 @@ function renderResumen(){
   document.querySelectorAll("#fondoOpsList [data-fondoid]").forEach(function(row){
     row.addEventListener("click", function(){ openFondoModal(row.getAttribute("data-fondoid")); });
   });
+
+  renderPrestamos();
 }
 
 function guardarSaldosAnteriores(){
@@ -1840,6 +1908,267 @@ function deleteFondoOp(){
   toast("Movimiento eliminado");
 }
 
+/* ---------- PRÉSTAMOS (a Andrés, Marcelo o Claudio, en pesos o dólares) ----------
+   Un préstamo no es un gasto normal: es plata de papá que sale y en algún
+   momento se espera que vuelva. Para que el saldo y el USD disponible
+   queden bien reflejados sin inventar un sistema de cálculo aparte, cada
+   préstamo genera (y mantiene vinculado) un movimiento real: si es en
+   pesos, un gasto con categoría "Préstamos"; si es en dólares, una
+   operación de USD tipo "venta" con cotización $0 (para que baje el
+   dólar disponible sin inventar un ingreso en pesos que nunca existió).
+   Cuando se marca como devuelto, se genera el movimiento inverso
+   (un gasto negativo / una "compra" de USD) fechado el día de la
+   devolución. state.prestamos es la lista con el estado de cada uno
+   (pendiente/devuelto) y las referencias a esos movimientos vinculados. */
+function personaLabel(p){ return ROLE_LABELS[p] || p; }
+
+function crearGastoPrestamo(prestamo){
+  var mes = prestamo.fecha.slice(0,7);
+  materializeMonth(mes);
+  var g = {
+    id: uid(), fecha: prestamo.fecha,
+    proveedor: "Préstamo a " + personaLabel(prestamo.persona),
+    detalle: prestamo.detalle || "",
+    monto: prestamo.monto, admin: prestamo.admin, categoria: "prestamos",
+    mes: mes, origenAuto: true
+  };
+  state.expenses.push(g);
+  prestamo.linkedGastoId = g.id;
+}
+
+function crearUsdOpPrestamo(prestamo){
+  var mes = prestamo.fecha.slice(0,7);
+  var rec = materializeMonth(mes);
+  if(!rec.usdOps) rec.usdOps = [];
+  var op = {
+    id: uid(), fecha: prestamo.fecha, tipo: "venta", admin: prestamo.admin,
+    montoUsd: prestamo.monto, cotizacion: 0, montoArs: 0,
+    legacySinLink: true, esPrestamo: true
+  };
+  rec.usdOps.push(op);
+  prestamo.linkedUsdOpId = op.id;
+  prestamo.linkedUsdOpMes = mes;
+}
+
+function crearGastoDevolucionPrestamo(prestamo, fechaDevolucion){
+  var mes = fechaDevolucion.slice(0,7);
+  materializeMonth(mes);
+  var g = {
+    id: uid(), fecha: fechaDevolucion,
+    proveedor: "Devolución préstamo de " + personaLabel(prestamo.persona),
+    detalle: prestamo.detalle || "",
+    monto: -prestamo.monto, admin: prestamo.admin, categoria: "prestamos",
+    mes: mes, origenAuto: true
+  };
+  state.expenses.push(g);
+  prestamo.linkedDevolucionGastoId = g.id;
+  prestamo.linkedDevolucionMes = mes;
+}
+
+function crearUsdOpDevolucionPrestamo(prestamo, fechaDevolucion){
+  var mes = fechaDevolucion.slice(0,7);
+  var rec = materializeMonth(mes);
+  if(!rec.usdOps) rec.usdOps = [];
+  var op = {
+    id: uid(), fecha: fechaDevolucion, tipo: "compra", admin: prestamo.admin,
+    montoUsd: prestamo.monto, cotizacion: 0, montoArs: 0,
+    legacySinLink: true, esPrestamo: true
+  };
+  rec.usdOps.push(op);
+  prestamo.linkedDevolucionUsdOpId = op.id;
+  prestamo.linkedDevolucionMes = mes;
+}
+
+function borrarGastoPrestamoPorId(gastoId){
+  if(!gastoId) return;
+  state.expenses = state.expenses.filter(function(e){ return e.id !== gastoId; });
+}
+
+function borrarUsdOpPrestamoPorId(mes, opId){
+  if(!mes || !opId) return;
+  var rec = state.months[mes];
+  if(!rec) return;
+  rec.usdOps = (rec.usdOps||[]).filter(function(o){ return o.id !== opId; });
+}
+
+function setPrestamoMoneda(val){
+  prestamoMonedaSel = val;
+  document.getElementById("pMonedaArs").classList.toggle("sel-claudio", val === "ARS");
+  document.getElementById("pMonedaUsd").classList.toggle("sel-marcelo", val === "USD");
+}
+function setPrestamoAdmin(val){
+  prestamoAdminSel = val;
+  document.getElementById("pAdminClaudio").classList.toggle("sel-claudio", val === "claudio");
+  document.getElementById("pAdminMarcelo").classList.toggle("sel-marcelo", val === "marcelo");
+}
+function setPrestamoPersona(val){
+  prestamoPersonaSel = val;
+  document.getElementById("pPersonaAndres").classList.toggle("sel-andres", val === "andres");
+  document.getElementById("pPersonaMarcelo").classList.toggle("sel-marcelo", val === "marcelo");
+  document.getElementById("pPersonaClaudio").classList.toggle("sel-claudio", val === "claudio");
+}
+
+function openPrestamoModal(id){
+  editingPrestamoId = id || null;
+  var btnDelete = document.getElementById("btnDeletePrestamo");
+  var btnSave = document.getElementById("btnSavePrestamo");
+  var btnMarcarDevuelto = document.getElementById("btnMarcarDevueltoPrestamo");
+  var btnAnularDevolucion = document.getElementById("btnAnularDevolucionPrestamo");
+  var estadoInfo = document.getElementById("prestamoEstadoInfo");
+
+  if(id){
+    var p = state.prestamos.find(function(x){ return x.id === id; });
+    var estaDevuelto = p.estado === "devuelto";
+    document.getElementById("prestamoModalTitle").textContent = "Préstamo";
+    document.getElementById("pFecha").value = p.fecha;
+    document.getElementById("pFecha").readOnly = estaDevuelto;
+    setPrestamoMoneda(p.moneda);
+    setPrestamoAdmin(p.admin);
+    setPrestamoPersona(p.persona);
+    document.getElementById("pMonto").value = numberToInputStr(p.monto);
+    document.getElementById("pMonto").readOnly = estaDevuelto;
+    document.getElementById("pDetalle").value = p.detalle || "";
+
+    estadoInfo.style.display = "block";
+    estadoInfo.textContent = estaDevuelto ? ("✅ Devuelto el " + formatDateDisplay(p.fechaDevolucion)) : "⏳ Pendiente de devolución";
+    estadoInfo.style.color = estaDevuelto ? "var(--green)" : "var(--orange)";
+
+    btnDelete.style.display = "block";
+    btnSave.style.display = estaDevuelto ? "none" : "block";
+    btnMarcarDevuelto.style.display = estaDevuelto ? "none" : "block";
+    btnAnularDevolucion.style.display = estaDevuelto ? "block" : "none";
+  } else {
+    document.getElementById("prestamoModalTitle").textContent = "Nuevo préstamo";
+    document.getElementById("pFecha").value = todayStr();
+    document.getElementById("pFecha").readOnly = false;
+    setPrestamoMoneda("ARS");
+    setPrestamoAdmin("claudio");
+    setPrestamoPersona("andres");
+    document.getElementById("pMonto").value = "";
+    document.getElementById("pMonto").readOnly = false;
+    document.getElementById("pDetalle").value = "";
+
+    estadoInfo.style.display = "none";
+    btnDelete.style.display = "none";
+    btnSave.style.display = "block";
+    btnMarcarDevuelto.style.display = "none";
+    btnAnularDevolucion.style.display = "none";
+  }
+  openModal("modalPrestamo");
+}
+
+function savePrestamo(){
+  var fecha = document.getElementById("pFecha").value;
+  var monto = parseARSInput(document.getElementById("pMonto").value);
+  var detalle = document.getElementById("pDetalle").value.trim();
+
+  if(!fecha){ toast("Falta la fecha"); return; }
+  if(isNaN(monto) || monto <= 0){ toast("Ingresá un monto válido"); return; }
+
+  if(editingPrestamoId){
+    var p = state.prestamos.find(function(x){ return x.id === editingPrestamoId; });
+    if(p.estado === "devuelto"){ toast("Anulá la devolución antes de editar"); return; }
+    if(p.moneda === "ARS") borrarGastoPrestamoPorId(p.linkedGastoId);
+    else borrarUsdOpPrestamoPorId(p.linkedUsdOpMes, p.linkedUsdOpId);
+    p.fecha = fecha; p.moneda = prestamoMonedaSel; p.monto = monto;
+    p.admin = prestamoAdminSel; p.persona = prestamoPersonaSel; p.detalle = detalle;
+    if(p.moneda === "ARS") crearGastoPrestamo(p); else crearUsdOpPrestamo(p);
+  } else {
+    var nuevo = {
+      id: uid(), fecha: fecha, moneda: prestamoMonedaSel, monto: monto,
+      admin: prestamoAdminSel, persona: prestamoPersonaSel, detalle: detalle,
+      estado: "pendiente", fechaDevolucion: null
+    };
+    if(nuevo.moneda === "ARS") crearGastoPrestamo(nuevo); else crearUsdOpPrestamo(nuevo);
+    state.prestamos.push(nuevo);
+  }
+  saveState();
+  closeModal("modalPrestamo");
+  renderAll();
+  toast("Préstamo guardado");
+}
+
+function marcarPrestamoDevuelto(id){
+  if(!id) return;
+  var p = state.prestamos.find(function(x){ return x.id === id; });
+  if(!p || p.estado === "devuelto") return;
+  var fechaDevolucion = todayStr();
+  if(p.moneda === "ARS") crearGastoDevolucionPrestamo(p, fechaDevolucion);
+  else crearUsdOpDevolucionPrestamo(p, fechaDevolucion);
+  p.estado = "devuelto";
+  p.fechaDevolucion = fechaDevolucion;
+  saveState();
+  closeModal("modalPrestamo");
+  renderAll();
+  toast("Préstamo marcado como devuelto");
+}
+
+function anularDevolucionPrestamo(id){
+  if(!id) return;
+  var p = state.prestamos.find(function(x){ return x.id === id; });
+  if(!p || p.estado !== "devuelto") return;
+  if(p.moneda === "ARS") borrarGastoPrestamoPorId(p.linkedDevolucionGastoId);
+  else borrarUsdOpPrestamoPorId(p.linkedDevolucionMes, p.linkedDevolucionUsdOpId);
+  p.estado = "pendiente";
+  p.fechaDevolucion = null;
+  p.linkedDevolucionGastoId = null;
+  p.linkedDevolucionUsdOpId = null;
+  p.linkedDevolucionMes = null;
+  saveState();
+  closeModal("modalPrestamo");
+  renderAll();
+  toast("Devolución anulada");
+}
+
+function deletePrestamo(id){
+  if(!id) return;
+  if(!confirm("¿Eliminar este préstamo? Esto también borra el movimiento (gasto u operación USD) que generó.")) return;
+  var p = state.prestamos.find(function(x){ return x.id === id; });
+  if(!p) return;
+  if(p.moneda === "ARS"){
+    borrarGastoPrestamoPorId(p.linkedGastoId);
+    borrarGastoPrestamoPorId(p.linkedDevolucionGastoId);
+  } else {
+    borrarUsdOpPrestamoPorId(p.linkedUsdOpMes, p.linkedUsdOpId);
+    borrarUsdOpPrestamoPorId(p.linkedDevolucionMes, p.linkedDevolucionUsdOpId);
+  }
+  state.prestamos = state.prestamos.filter(function(x){ return x.id !== id; });
+  saveState();
+  closeModal("modalPrestamo");
+  renderAll();
+  toast("Préstamo eliminado");
+}
+
+function renderPrestamos(){
+  var container = document.getElementById("prestamosList");
+  if(!container) return;
+  var list = (state.prestamos || []).slice().sort(function(a,b){ return (b.fecha||"").localeCompare(a.fecha||""); });
+  if(list.length === 0){
+    container.innerHTML = '<div class="empty-state" style="padding:16px 4px;"><div class="big">🤝</div>Sin préstamos registrados.</div>';
+    return;
+  }
+  var html = "";
+  list.forEach(function(p){
+    var montoTxt = p.moneda === "USD" ? formatUSD(p.monto) : formatARS(p.monto);
+    var estadoBadge = p.estado === "devuelto"
+      ? '<span class="badge" style="background:rgba(76,175,80,.18); color:var(--green);">Devuelto</span>'
+      : '<span class="badge" style="background:rgba(255,167,38,.18); color:var(--orange);">Pendiente</span>';
+    html += '<div class="gasto-row" data-prestamoid="'+p.id+'">' +
+      '<div class="gasto-cat-icon">🤝</div>' +
+      '<div class="gasto-info">' +
+        '<div class="gasto-prov">'+personaLabel(p.persona)+'</div>' +
+        '<div class="gasto-detalle">'+escapeHtml(p.detalle || "")+'</div>' +
+        '<div class="gasto-meta">'+estadoBadge+' '+formatDateDisplay(p.fecha)+' · presta '+personaLabel(p.admin)+'</div>' +
+      '</div>' +
+      '<div class="gasto-right"><div class="gasto-monto" style="color:var(--accent)">'+montoTxt+'</div></div>' +
+    '</div>';
+  });
+  container.innerHTML = html;
+  container.querySelectorAll("[data-prestamoid]").forEach(function(row){
+    row.addEventListener("click", function(){ openPrestamoModal(row.getAttribute("data-prestamoid")); });
+  });
+}
+
 /* ---------- RENDER: HISTORIAL ---------- */
 function renderHistorial(){
   var sel = document.getElementById("selHistMonth");
@@ -2086,7 +2415,7 @@ function bindStaticEventListeners(){
   // Formateo en vivo (punto de miles / coma decimal) para los campos de
   // monto fijos. Los que se generan dinámicamente (ingresos) se enganchan
   // en renderIngresos() cada vez que se dibujan.
-  ["gMonto","inpSaldoAntClaudio","inpSaldoAntMarcelo","inpFondosYPF","uMontoUsd","uCotizacion","fMonto"].forEach(function(id){
+  ["gMonto","inpSaldoAntClaudio","inpSaldoAntMarcelo","inpFondosYPF","uMontoUsd","uCotizacion","fMonto","pMonto"].forEach(function(id){
     attachLiveThousands(document.getElementById(id));
   });
 
@@ -2166,6 +2495,19 @@ function bindStaticEventListeners(){
   document.getElementById("btnSaveFondo").addEventListener("click", saveFondoOp);
   document.getElementById("btnDeleteFondo").addEventListener("click", deleteFondoOp);
   document.getElementById("btnLinkGastoFondo").addEventListener("click", generarGastoVinculadoFondoAhora);
+
+  document.getElementById("btnAddPrestamo").addEventListener("click", function(){ openPrestamoModal(null); });
+  document.getElementById("pMonedaArs").addEventListener("click", function(){ setPrestamoMoneda("ARS"); });
+  document.getElementById("pMonedaUsd").addEventListener("click", function(){ setPrestamoMoneda("USD"); });
+  document.getElementById("pAdminClaudio").addEventListener("click", function(){ setPrestamoAdmin("claudio"); });
+  document.getElementById("pAdminMarcelo").addEventListener("click", function(){ setPrestamoAdmin("marcelo"); });
+  document.getElementById("pPersonaAndres").addEventListener("click", function(){ setPrestamoPersona("andres"); });
+  document.getElementById("pPersonaMarcelo").addEventListener("click", function(){ setPrestamoPersona("marcelo"); });
+  document.getElementById("pPersonaClaudio").addEventListener("click", function(){ setPrestamoPersona("claudio"); });
+  document.getElementById("btnSavePrestamo").addEventListener("click", savePrestamo);
+  document.getElementById("btnDeletePrestamo").addEventListener("click", function(){ deletePrestamo(editingPrestamoId); });
+  document.getElementById("btnMarcarDevueltoPrestamo").addEventListener("click", function(){ marcarPrestamoDevuelto(editingPrestamoId); });
+  document.getElementById("btnAnularDevolucionPrestamo").addEventListener("click", function(){ anularDevolucionPrestamo(editingPrestamoId); });
 
   // Historial
   document.getElementById("selHistMonth").addEventListener("change", function(){
