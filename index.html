@@ -346,10 +346,12 @@
     <div class="card">
       <h3>Ingresos · Claudio</h3>
       <div id="ingresosClaudioList"></div>
+      <div class="small-add" id="btnAddIngresoClaudio">+ Agregar ítem</div>
     </div>
     <div class="card">
       <h3>Ingresos · Marcelo</h3>
       <div id="ingresosMarceloList"></div>
+      <div class="small-add" id="btnAddIngresoMarcelo">+ Agregar ítem</div>
     </div>
   </section>
   <div class="sticky-save no-print" id="ingresosSaveBar">
@@ -487,6 +489,20 @@
     </div>
     <button class="btn btn-secondary" id="btnGoToMonth" style="margin-bottom:14px;">Ir al mes</button>
     <div class="month-picker-list" id="monthPickerList"></div>
+  </div>
+</div>
+
+<!-- MODAL: AGREGAR INGRESO -->
+<div class="modal-overlay" id="modalAgregarIngreso">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span id="agregarIngresoTitle">Agregar ítem</span><button class="close-x" data-close="modalAgregarIngreso">✕</button></div>
+    <div class="month-picker-list" id="agregarIngresoList"></div>
+    <div class="field" style="margin-top:14px;">
+      <label>O agregar un ítem nuevo</label>
+      <input type="text" id="inpNuevoItemIngreso" placeholder="Ej: Reintegro obra social">
+    </div>
+    <button class="btn btn-secondary" id="btnCrearNuevoItemIngreso">+ Crear y agregar</button>
   </div>
 </div>
 
@@ -772,6 +788,45 @@ function ingresosMarceloEnCero(){
   return o;
 }
 
+/* ---------- CATÁLOGO DE ÍTEMS DE INGRESOS (fijos + agregados a mano) ----------
+   Cada mes solo se muestran los ítems que se agregaron para ESE mes (no
+   toda la lista fija de memoria) — para eso existe "catalogoIngresos",
+   que junta los ítems fijos de siempre (en su orden de toda la vida) con
+   los que se fueron creando a mano con "+ Agregar ítem" (esos quedan
+   guardados para siempre, como una opción más, y se ubican después de
+   los fijos en el orden en que se fueron creando). Qué ítems están
+   "activos" (visibles) en un mes puntual se guarda en
+   ingresosClaudioActivos / ingresosMarceloActivos de ese mes. */
+function catalogoIngresos(persona){
+  var fijos = persona === "claudio" ? INGRESOS_CLAUDIO_DEF : INGRESOS_MARCELO_DEF;
+  var extra = (persona === "claudio" ? state.ingresosClaudioExtra : state.ingresosMarceloExtra) || [];
+  return fijos.concat(extra);
+}
+
+// Para meses viejos que no tienen todavía la lista de "activos" guardada
+// (se crearon antes de que existiera esta función), se calcula un valor
+// por defecto: se considera activo cualquier ítem que tenga un monto
+// distinto de $0 o una observación cargada — así no desaparece de golpe
+// nada de lo que ya se había cargado.
+function calcularActivosPorDefecto(ingresosObj, obsObj, catalogo){
+  var activos = [];
+  catalogo.forEach(function(def){
+    var val = ingresosObj ? ingresosObj[def.key] : undefined;
+    var obs = obsObj ? obsObj[def.key] : undefined;
+    if((Number(val) || 0) !== 0 || (obs && String(obs).trim() !== "")) activos.push(def.key);
+  });
+  return activos;
+}
+
+function obtenerActivosIngreso(rec, persona){
+  if(!rec) return [];
+  var activosKey = persona === "claudio" ? "ingresosClaudioActivos" : "ingresosMarceloActivos";
+  if(rec[activosKey]) return rec[activosKey];
+  var ingresosKey = persona === "claudio" ? "ingresosClaudio" : "ingresosMarcelo";
+  var obsKey = persona === "claudio" ? "ingresosClaudioObs" : "ingresosMarceloObs";
+  return calcularActivosPorDefecto(rec[ingresosKey], rec[obsKey], catalogoIngresos(persona));
+}
+
 var MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
 var state = null;
@@ -1022,7 +1077,9 @@ function defaultState(){
     expenses: [],
     months: {},
     proveedores: DEFAULT_PROVEEDORES.slice(),
-    prestamos: []
+    prestamos: [],
+    ingresosClaudioExtra: [],
+    ingresosMarceloExtra: []
   };
   s.months[curMonth] = emptyMonthRecord();
   return s;
@@ -1036,6 +1093,8 @@ function normalizeState(s){
   if(!s.proveedores) s.proveedores = DEFAULT_PROVEEDORES.slice();
   if(!s.currentMonth) s.currentMonth = todayStr().slice(0,7);
   if(!s.prestamos) s.prestamos = [];
+  if(!s.ingresosClaudioExtra) s.ingresosClaudioExtra = [];
+  if(!s.ingresosMarceloExtra) s.ingresosMarceloExtra = [];
   return s;
 }
 
@@ -1156,6 +1215,8 @@ function emptyMonthRecord(){
     ingresosMarcelo: ingresosMarceloEnCero(),
     ingresosClaudioObs: {},
     ingresosMarceloObs: {},
+    ingresosClaudioActivos: [],
+    ingresosMarceloActivos: [],
     usdClaudioAnterior: 0,
     usdMarceloAnterior: 0,
     usdOps: [],
@@ -1197,6 +1258,11 @@ function buildVirtualMonth(key){
     rec.usdMarceloAnterior = anchorTotals.usdMarceloFinal;
     rec.fondosYPF = anchor.fondosYPF;
     rec.fondoInversionAnterior = anchorTotals.fondoInversionFinal;
+    // Los MONTOS de ingresos nunca se copian solos (siguen arrancando en
+    // $0), pero qué casilleros están a la vista sí se arrastra del mes
+    // anterior, para no tener que re-agregar "Pensión" a mano cada mes.
+    rec.ingresosClaudioActivos = obtenerActivosIngreso(anchor, "claudio").slice();
+    rec.ingresosMarceloActivos = obtenerActivosIngreso(anchor, "marcelo").slice();
   }
   return rec;
 }
@@ -1512,38 +1578,37 @@ function deleteGastoFromModal(){
 }
 
 /* ---------- RENDER: INGRESOS ---------- */
-function renderIngresos(){
+function renderListaIngresos(persona){
   var rec = getMonthRecord(state.currentMonth);
-  if(!rec.ingresosClaudioObs) rec.ingresosClaudioObs = {};
-  if(!rec.ingresosMarceloObs) rec.ingresosMarceloObs = {};
+  var ingresosKey = persona === "claudio" ? "ingresosClaudio" : "ingresosMarcelo";
+  var obsKey = persona === "claudio" ? "ingresosClaudioObs" : "ingresosMarceloObs";
+  var containerId = persona === "claudio" ? "ingresosClaudioList" : "ingresosMarceloList";
+  if(!rec[obsKey]) rec[obsKey] = {};
+  var activos = obtenerActivosIngreso(rec, persona);
 
-  var claudioHtml = "";
-  INGRESOS_CLAUDIO_DEF.forEach(function(def){
-    var val = rec.ingresosClaudio[def.key];
-    var obs = rec.ingresosClaudioObs[def.key] || "";
-    claudioHtml += '<div class="ingreso-row-wrap">' +
+  var html = "";
+  catalogoIngresos(persona).forEach(function(def){
+    if(activos.indexOf(def.key) === -1) return;
+    var val = rec[ingresosKey][def.key];
+    var obs = rec[obsKey][def.key] || "";
+    html += '<div class="ingreso-row-wrap">' +
       '<div class="ingreso-row">' +
         '<div class="ingreso-lbl"><div class="l1">'+def.label+'</div>'+(def.sub ? '<div class="l2">'+def.sub+'</div>' : '')+'</div>' +
-        '<input type="text" inputmode="decimal" class="ingreso-monto-input" data-admin="claudio" data-key="'+def.key+'" value="'+numberToInputStr(val)+'">' +
+        '<input type="text" inputmode="decimal" class="ingreso-monto-input" data-admin="'+persona+'" data-key="'+def.key+'" value="'+numberToInputStr(val)+'">' +
+        '<button class="del-btn no-print" data-quitar-persona="'+persona+'" data-quitar-key="'+def.key+'" title="Quitar de este mes">✕</button>' +
       '</div>' +
-      '<input type="text" class="ingreso-obs-input" data-obs-admin="claudio" data-obs-key="'+def.key+'" placeholder="Observaciones (opcional)" value="'+escapeHtml(obs)+'">' +
+      '<input type="text" class="ingreso-obs-input" data-obs-admin="'+persona+'" data-obs-key="'+def.key+'" placeholder="Observaciones (opcional)" value="'+escapeHtml(obs)+'">' +
     '</div>';
   });
-  document.getElementById("ingresosClaudioList").innerHTML = claudioHtml;
+  if(html === ""){
+    html = '<div class="empty-state" style="padding:16px 4px;">Sin ítems este mes. Tocá "+ Agregar ítem" para cargar uno.</div>';
+  }
+  document.getElementById(containerId).innerHTML = html;
+}
 
-  var marceloHtml = "";
-  INGRESOS_MARCELO_DEF.forEach(function(def){
-    var val = rec.ingresosMarcelo[def.key];
-    var obs = rec.ingresosMarceloObs[def.key] || "";
-    marceloHtml += '<div class="ingreso-row-wrap">' +
-      '<div class="ingreso-row">' +
-        '<div class="ingreso-lbl"><div class="l1">'+def.label+'</div>'+(def.sub ? '<div class="l2">'+def.sub+'</div>' : '')+'</div>' +
-        '<input type="text" inputmode="decimal" class="ingreso-monto-input" data-admin="marcelo" data-key="'+def.key+'" value="'+numberToInputStr(val)+'">' +
-      '</div>' +
-      '<input type="text" class="ingreso-obs-input" data-obs-admin="marcelo" data-obs-key="'+def.key+'" placeholder="Observaciones (opcional)" value="'+escapeHtml(obs)+'">' +
-    '</div>';
-  });
-  document.getElementById("ingresosMarceloList").innerHTML = marceloHtml;
+function renderIngresos(){
+  renderListaIngresos("claudio");
+  renderListaIngresos("marcelo");
 
   document.querySelectorAll("#ingresosClaudioList .ingreso-monto-input, #ingresosMarceloList .ingreso-monto-input").forEach(function(inp){
     attachLiveThousands(inp);
@@ -1551,6 +1616,12 @@ function renderIngresos(){
   });
   document.querySelectorAll("#ingresosClaudioList .ingreso-obs-input, #ingresosMarceloList .ingreso-obs-input").forEach(function(inp){
     inp.readOnly = READONLY;
+  });
+  document.querySelectorAll("#ingresosClaudioList [data-quitar-key], #ingresosMarceloList [data-quitar-key]").forEach(function(btn){
+    btn.addEventListener("click", function(ev){
+      ev.stopPropagation();
+      quitarItemIngreso(btn.getAttribute("data-quitar-persona"), btn.getAttribute("data-quitar-key"));
+    });
   });
 }
 
@@ -1573,6 +1644,91 @@ function guardarIngresos(){
   saveState();
   renderAll();
   toast("Ingresos guardados");
+}
+
+/* ---------- INGRESOS: agregar / quitar ítems de un mes puntual ---------- */
+var agregarIngresoPersonaActual = null;
+
+function quitarItemIngreso(persona, key){
+  if(READONLY) return;
+  if(!confirm("¿Quitar este ítem de "+monthLabel(state.currentMonth)+"? Se borra el monto y la observación cargados acá, en este mes.")) return;
+  var rec = materializeMonth(state.currentMonth);
+  var activosKey = persona === "claudio" ? "ingresosClaudioActivos" : "ingresosMarceloActivos";
+  var ingresosKey = persona === "claudio" ? "ingresosClaudio" : "ingresosMarcelo";
+  var obsKey = persona === "claudio" ? "ingresosClaudioObs" : "ingresosMarceloObs";
+  if(!rec[activosKey]) rec[activosKey] = obtenerActivosIngreso(rec, persona).slice();
+  rec[activosKey] = rec[activosKey].filter(function(k){ return k !== key; });
+  rec[ingresosKey][key] = 0;
+  if(!rec[obsKey]) rec[obsKey] = {};
+  rec[obsKey][key] = "";
+  saveState();
+  renderAll();
+  toast("Ítem quitado de este mes");
+}
+
+function abrirAgregarIngreso(persona){
+  agregarIngresoPersonaActual = persona;
+  document.getElementById("agregarIngresoTitle").textContent = "Agregar ítem — " + personaLabel(persona);
+  document.getElementById("inpNuevoItemIngreso").value = "";
+  renderListaAgregarIngreso();
+  openModal("modalAgregarIngreso");
+}
+
+function renderListaAgregarIngreso(){
+  var persona = agregarIngresoPersonaActual;
+  var rec = getMonthRecord(state.currentMonth);
+  var activos = obtenerActivosIngreso(rec, persona);
+  var disponibles = catalogoIngresos(persona).filter(function(def){ return activos.indexOf(def.key) === -1; });
+
+  var list = document.getElementById("agregarIngresoList");
+  if(disponibles.length === 0){
+    list.innerHTML = '<div style="padding:14px 10px; color:var(--text-dim); font-size:13px;">Ya están todos los ítems agregados este mes.</div>';
+    return;
+  }
+  list.innerHTML = disponibles.map(function(def){
+    return '<div class="month-picker-item" data-additem="'+def.key+'">'+escapeHtml(def.label)+'<span class="chev">+</span></div>';
+  }).join("");
+  list.querySelectorAll("[data-additem]").forEach(function(item){
+    item.addEventListener("click", function(){
+      agregarItemIngresoAlMes(agregarIngresoPersonaActual, item.getAttribute("data-additem"));
+    });
+  });
+}
+
+function agregarItemIngresoAlMes(persona, key){
+  var rec = materializeMonth(state.currentMonth);
+  var activosKey = persona === "claudio" ? "ingresosClaudioActivos" : "ingresosMarceloActivos";
+  var ingresosKey = persona === "claudio" ? "ingresosClaudio" : "ingresosMarcelo";
+  var obsKey = persona === "claudio" ? "ingresosClaudioObs" : "ingresosMarceloObs";
+  if(!rec[activosKey]) rec[activosKey] = obtenerActivosIngreso(rec, persona).slice();
+  if(rec[activosKey].indexOf(key) === -1) rec[activosKey].push(key);
+  if(!rec[ingresosKey]) rec[ingresosKey] = {};
+  if(rec[ingresosKey][key] === undefined) rec[ingresosKey][key] = 0;
+  if(!rec[obsKey]) rec[obsKey] = {};
+  if(rec[obsKey][key] === undefined) rec[obsKey][key] = "";
+  saveState();
+  closeModal("modalAgregarIngreso");
+  renderAll();
+  toast("Ítem agregado");
+}
+
+function crearNuevoItemIngreso(){
+  var label = document.getElementById("inpNuevoItemIngreso").value.trim();
+  if(!label){ toast("Escribí un nombre para el ítem"); return; }
+  var persona = agregarIngresoPersonaActual;
+  var extraKey = persona === "claudio" ? "ingresosClaudioExtra" : "ingresosMarceloExtra";
+  if(!state[extraKey]) state[extraKey] = [];
+  var fijos = persona === "claudio" ? INGRESOS_CLAUDIO_DEF : INGRESOS_MARCELO_DEF;
+  var existente = state[extraKey].find(function(x){ return x.label.trim().toLowerCase() === label.toLowerCase(); }) ||
+                  fijos.find(function(x){ return x.label.trim().toLowerCase() === label.toLowerCase(); });
+  var key;
+  if(existente){
+    key = existente.key;
+  } else {
+    key = "extra_" + uid();
+    state[extraKey].push({key: key, label: label, sub: ""});
+  }
+  agregarItemIngresoAlMes(persona, key);
 }
 
 /* ---------- RENDER: RESUMEN ---------- */
@@ -2196,12 +2352,18 @@ function renderPrintArea(key){
     return '<tr><td>'+formatDateDisplay(e.fecha)+'</td><td>'+escapeHtml(e.proveedor)+'</td><td>'+escapeHtml(e.detalle)+'</td><td>'+c.label+'</td><td>'+(e.admin==="claudio"?"Claudio":"Marcelo")+'</td><td class="num">'+formatARS(e.monto)+'</td></tr>';
   }).join("");
 
-  var ingClaudioRows = INGRESOS_CLAUDIO_DEF.map(function(def){
+  var activosClaudioHist = obtenerActivosIngreso(rec, "claudio");
+  var ingClaudioRows = catalogoIngresos("claudio").filter(function(def){
+    return activosClaudioHist.indexOf(def.key) !== -1;
+  }).map(function(def){
     var obs = (rec.ingresosClaudioObs && rec.ingresosClaudioObs[def.key]) || "";
     var obsHtml = obs ? ' <span style="color:var(--text-dim); font-size:11px;">— '+escapeHtml(obs)+'</span>' : '';
     return '<tr><td>'+def.label+obsHtml+'</td><td class="num">'+formatARS(rec.ingresosClaudio[def.key])+'</td></tr>';
   }).join("");
-  var ingMarceloRows = INGRESOS_MARCELO_DEF.map(function(def){
+  var activosMarceloHist = obtenerActivosIngreso(rec, "marcelo");
+  var ingMarceloRows = catalogoIngresos("marcelo").filter(function(def){
+    return activosMarceloHist.indexOf(def.key) !== -1;
+  }).map(function(def){
     var obs = (rec.ingresosMarceloObs && rec.ingresosMarceloObs[def.key]) || "";
     var obsHtml = obs ? ' <span style="color:var(--text-dim); font-size:11px;">— '+escapeHtml(obs)+'</span>' : '';
     return '<tr><td>'+def.label+obsHtml+'</td><td class="num">'+formatARS(rec.ingresosMarcelo[def.key])+'</td></tr>';
@@ -2462,6 +2624,9 @@ function bindStaticEventListeners(){
 
   // Ingresos
   document.getElementById("btnGuardarIngresos").addEventListener("click", guardarIngresos);
+  document.getElementById("btnAddIngresoClaudio").addEventListener("click", function(){ abrirAgregarIngreso("claudio"); });
+  document.getElementById("btnAddIngresoMarcelo").addEventListener("click", function(){ abrirAgregarIngreso("marcelo"); });
+  document.getElementById("btnCrearNuevoItemIngreso").addEventListener("click", crearNuevoItemIngreso);
 
   // Resumen
   document.getElementById("inpSaldoAntClaudio").addEventListener("change", guardarSaldosAnteriores);
