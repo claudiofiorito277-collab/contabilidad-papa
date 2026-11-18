@@ -403,6 +403,7 @@
         <div class="usd-card"><div class="lbl">Marcelo</div><div class="val" id="usdMarceloVal">u$s 0</div></div>
       </div>
       <div class="small-add" id="btnAddUsdOp">+ Registrar compra/venta USD</div>
+      <div class="small-add" id="btnAddPaseUsd">⇄ Pasar USD a otro</div>
       <div id="usdOpsList" style="margin-top:8px;"></div>
     </div>
 
@@ -503,6 +504,33 @@
       <input type="text" id="inpNuevoItemIngreso" placeholder="Ej: Reintegro obra social">
     </div>
     <button class="btn btn-secondary" id="btnCrearNuevoItemIngreso">+ Crear y agregar</button>
+  </div>
+</div>
+
+<!-- MODAL: PASE USD -->
+<div class="modal-overlay" id="modalPaseUsd">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><span>Pasar USD a otro</span><button class="close-x" data-close="modalPaseUsd">✕</button></div>
+    <div class="field">
+      <label>Fecha</label>
+      <input type="date" id="paseFecha">
+    </div>
+    <div class="field">
+      <label>Los dólares los tenía</label>
+      <div class="radio-group">
+        <div class="radio-opt" id="paseDeClaudio" data-val="claudio">Claudio</div>
+        <div class="radio-opt" id="paseDeMarcelo" data-val="marcelo">Marcelo</div>
+      </div>
+    </div>
+    <div id="paseParaInfo" style="font-size:13px; color:var(--text-dim); margin-bottom:14px;"></div>
+    <div class="field">
+      <label>Monto USD</label>
+      <input type="text" inputmode="decimal" id="paseMonto" placeholder="0">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnSavePaseUsd">Pasar</button>
+    </div>
   </div>
 </div>
 
@@ -1782,7 +1810,7 @@ function renderResumen(){
     var adminBadge = op.admin === "claudio" ? '<span class="badge badge-claudio">C</span>' : '<span class="badge badge-marcelo">M</span>';
     usdOpsHtml += '<div class="gasto-row" data-usdid="'+op.id+'" style="padding:8px 4px;">' +
       '<div class="gasto-info">' +
-        '<div class="gasto-prov" style="font-size:14px;">'+adminBadge+(op.tipo === "compra" ? "Compra" : "Venta")+' USD'+(op.esPrestamo ? ' <span style="color:var(--text-dim); font-weight:400;">(préstamo)</span>' : '')+'</div>' +
+        '<div class="gasto-prov" style="font-size:14px;">'+adminBadge+(op.tipo === "compra" ? "Compra" : "Venta")+' USD'+(op.esPrestamo ? ' <span style="color:var(--text-dim); font-weight:400;">(préstamo)</span>' : '')+(op.transferId ? ' <span style="color:var(--text-dim); font-weight:400;">(pase)</span>' : '')+'</div>' +
         '<div class="gasto-meta">'+formatDateDisplay(op.fecha)+' · cotiz. '+formatARS(op.cotizacion)+'</div>' +
       '</div>' +
       '<div class="gasto-right"><div class="gasto-monto" style="color:'+color+'">'+sign+formatUSD(op.montoUsd)+'</div></div>' +
@@ -1908,8 +1936,13 @@ function openUsdModal(id){
     // con el egreso/ingreso en pesos, se ofrece generarlo ahora a pedido
     // (no se hace solo, para no tocar meses ya validados sin que el
     // usuario lo pida a propósito).
-    btnLink.style.display = op.legacySinLink ? "block" : "none";
+    btnLink.style.display = (op.legacySinLink && !op.transferId) ? "block" : "none";
+    // Un pase entre Claudio y Marcelo son dos operaciones enganchadas: no
+    // se edita de a una (quedaría descuadrado), solo se puede eliminar,
+    // que borra las dos.
+    document.getElementById("btnSaveUsd").style.display = op.transferId ? "none" : "block";
   } else {
+    document.getElementById("btnSaveUsd").style.display = "block";
     document.getElementById("uFecha").value = todayStr();
     setUTipo("compra");
     setUAdmin("claudio");
@@ -1970,11 +2003,55 @@ function deleteUsdOp(){
   if(!rec) return;
   var op = (rec.usdOps||[]).find(function(o){ return o.id === editingUsdId; });
   borrarGastoVinculado(op);
-  rec.usdOps = (rec.usdOps||[]).filter(function(o){ return o.id !== editingUsdId; });
+  if(op && op.transferId){
+    // Pase entre Claudio y Marcelo: se borran las dos puntas.
+    Object.keys(state.months).forEach(function(k){
+      var r = state.months[k];
+      r.usdOps = (r.usdOps||[]).filter(function(o){ return o.transferId !== op.transferId; });
+    });
+  } else {
+    rec.usdOps = (rec.usdOps||[]).filter(function(o){ return o.id !== editingUsdId; });
+  }
   saveState();
   closeModal("modalUsd");
   renderAll();
   toast("Operación eliminada");
+}
+
+/* ---------- PASE DE USD ENTRE CLAUDIO Y MARCELO ----------
+   Plata en dólares que ya estaba comprada y cambia de manos (ej: uno se
+   la guarda al otro). Genera dos operaciones enganchadas por transferId:
+   una "venta" del que entrega y una "compra" del que recibe, ambas con
+   cotización 0 y sin vínculo en pesos, así no se mueve ningún peso. */
+var paseDeSel = "claudio";
+function setPaseDe(val){
+  paseDeSel = val;
+  document.getElementById("paseDeClaudio").classList.toggle("sel-claudio", val === "claudio");
+  document.getElementById("paseDeMarcelo").classList.toggle("sel-marcelo", val === "marcelo");
+  document.getElementById("paseParaInfo").textContent = "Los recibe " + (val === "claudio" ? "Marcelo" : "Claudio") + ". No se mueven pesos.";
+}
+function abrirPaseUsd(){
+  document.getElementById("paseFecha").value = todayStr();
+  document.getElementById("paseMonto").value = "";
+  setPaseDe("claudio");
+  openModal("modalPaseUsd");
+}
+function guardarPaseUsd(){
+  var fecha = document.getElementById("paseFecha").value;
+  var monto = parseARSInput(document.getElementById("paseMonto").value);
+  if(!fecha){ toast("Falta la fecha"); return; }
+  if(isNaN(monto) || monto <= 0){ toast("Ingresá un monto USD válido"); return; }
+  var mes = fecha.slice(0,7);
+  var rec = materializeMonth(mes);
+  if(!rec.usdOps) rec.usdOps = [];
+  var transferId = uid();
+  var para = paseDeSel === "claudio" ? "marcelo" : "claudio";
+  rec.usdOps.push({id: uid(), fecha: fecha, tipo: "venta", admin: paseDeSel, montoUsd: monto, cotizacion: 0, montoArs: 0, legacySinLink: true, transferId: transferId});
+  rec.usdOps.push({id: uid(), fecha: fecha, tipo: "compra", admin: para, montoUsd: monto, cotizacion: 0, montoArs: 0, legacySinLink: true, transferId: transferId});
+  saveState();
+  closeModal("modalPaseUsd");
+  renderAll();
+  toast("Pase de USD guardado");
 }
 
 /* ---------- MODAL: FONDO ---------- */
@@ -2649,6 +2726,11 @@ function bindStaticEventListeners(){
   document.getElementById("uMontoUsd").addEventListener("input", updateUsdArsPreview);
   document.getElementById("uCotizacion").addEventListener("input", updateUsdArsPreview);
   document.getElementById("btnSaveUsd").addEventListener("click", saveUsdOp);
+  document.getElementById("btnAddPaseUsd").addEventListener("click", abrirPaseUsd);
+  document.getElementById("paseDeClaudio").addEventListener("click", function(){ setPaseDe("claudio"); });
+  document.getElementById("paseDeMarcelo").addEventListener("click", function(){ setPaseDe("marcelo"); });
+  document.getElementById("btnSavePaseUsd").addEventListener("click", guardarPaseUsd);
+  attachLiveThousands(document.getElementById("paseMonto"));
   document.getElementById("btnDeleteUsd").addEventListener("click", deleteUsdOp);
   document.getElementById("btnLinkGastoUsd").addEventListener("click", generarGastoVinculadoUsdAhora);
 
